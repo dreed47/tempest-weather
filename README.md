@@ -21,8 +21,13 @@ config file editing required:
 
 - Omarchy with `omarchy-shell` (the Quickshell bar).
 - `curl` on `PATH` (ships with Omarchy).
-- A Tempest station ID and a personal access token from
-  <https://tempestwx.com/settings/tokens>.
+- A Tempest personal access token from
+  <https://tempestwx.com/settings/tokens>. That's all — the token is
+  account-scoped, so the station is detected automatically. A station ID is
+  only needed if your account has more than one station.
+
+On first run, before a token is set, the pill still shows (a neutral cloud);
+click it and the popup explains setup and opens the settings form.
 
 ## Install
 
@@ -48,11 +53,12 @@ precedence:
 
 ### Option A — the settings form (easiest)
 
-Open the popup and click the **gear** (top-right). Enter your station ID and
-token, pick units, set the refresh interval, and **Save**. Each field is
-written to the widget's `shell.json` entry with `omarchy-bar set` and the pill
-reloads immediately. Leave a field blank to fall back to the environment
-variable.
+Open the popup and click the **gear** (top-right). Paste your token, pick
+units, set the refresh interval, and **Save**. Leave **Station ID** blank
+unless your account has more than one station — it is auto-detected. Each
+field is written to the widget's `shell.json` entry with `omarchy-bar set`
+and the pill reloads immediately; a blank field falls back to the matching
+environment variable.
 
 ### Option B — edit shell.json directly
 
@@ -61,12 +67,13 @@ Edit the widget's layout entry in `~/.config/omarchy/shell.json`:
 ```json
 {
   "id": "io.github.dreed47.tempest-weather",
-  "stationId": "12345",
   "token": "your-tempest-token",
   "units": "metric",
   "refreshMinutes": 10
 }
 ```
+
+Add `"stationId": "12345"` only for a multi-station account.
 
 The shell hot-reloads `shell.json`, so the pill updates within a few seconds.
 
@@ -93,8 +100,8 @@ shell) so `omarchy-shell` picks them up. Leave `stationId` / `token` unset in
 |------------------|------------|-------------------------------------------------------------|
 | `units`          | `metric`   | `metric` (°C, km/h, mb) or `imperial` (°F, mph, inHg)       |
 | `refreshMinutes` | `10`       | Auto-refresh interval; clamped to a minimum of 5            |
-| `stationId`      | *(unset)*  | Overrides `$TEMPEST_STATION_ID`                             |
-| `token`          | *(unset)*  | Overrides `$TEMPEST_TOKEN`                                  |
+| `token`          | *(unset)*  | Tempest API token; overrides `$TEMPEST_TOKEN`               |
+| `stationId`      | *(unset)*  | Optional; blank = first station on the token's account. Overrides `$TEMPEST_STATION_ID` |
 
 ## Interactions
 

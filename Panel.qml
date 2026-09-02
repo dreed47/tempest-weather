@@ -32,15 +32,34 @@ Panel {
 
   // ---- Configuration ------------------------------------------------------
 
-  readonly property string stationId: {
+  // Explicit station id, from the widget setting or the environment. Blank is
+  // fine: the token belongs to a WeatherFlow account, and /stations lists that
+  // account's stations, so a single-station account is auto-detected.
+  readonly property string configuredStationId: {
     var v = String(setting("stationId", "")).replace(/^\s+|\s+$/g, "")
     return v !== "" ? v : String(Quickshell.env("TEMPEST_STATION_ID") || "").replace(/^\s+|\s+$/g, "")
   }
+  // Filled from GET /stations when no station id is configured.
+  property string discoveredStationId: ""
+  readonly property string stationId: configuredStationId !== "" ? configuredStationId : discoveredStationId
+
   readonly property string token: {
     var v = String(setting("token", "")).replace(/^\s+|\s+$/g, "")
     return v !== "" ? v : String(Quickshell.env("TEMPEST_TOKEN") || "").replace(/^\s+|\s+$/g, "")
   }
-  readonly property bool configured: stationId !== "" && token !== ""
+  readonly property bool hasToken: token !== ""
+  readonly property bool configured: hasToken && stationId !== ""
+
+  onTokenChanged: {
+    discoveredStationId = ""
+    if (!hasToken) report = null   // drop stale data when the token is removed
+    Qt.callLater(maybeDiscoverStation)
+  }
+
+  function maybeDiscoverStation() {
+    if (!hasToken || configuredStationId !== "" || discoveredStationId !== "" || stationsProc.running) return
+    stationsProc.running = true
+  }
 
   readonly property string units: Model.normalizedUnits(setting("units", "metric"))
   readonly property var unitParams: Model.apiUnitParams(units)
@@ -71,8 +90,18 @@ Panel {
   readonly property string deg: String.fromCharCode(0x00b0)
   readonly property string tempStr: current ? Model.roundedTemp(current.air_temperature) : ""
   readonly property string glyphStr: current ? Model.iconForTempest(current.icon) : ""
-  readonly property string label: glyphStr !== "" && tempStr !== "" ? (glyphStr + "  " + tempStr + deg) : ""
-  readonly property string tooltip: current && current.conditions ? String(current.conditions) : ""
+  readonly property string neutralGlyph: String.fromCharCode(0xe33d) // wi-cloud
+
+  // The pill always shows something once the widget is enabled: the condition
+  // glyph + temperature when data is in, otherwise a neutral cloud so a fresh
+  // install is visible and clicking it opens the popup (and its settings form).
+  readonly property string label: (glyphStr !== "" && tempStr !== "")
+    ? (glyphStr + "  " + tempStr + deg)
+    : neutralGlyph
+
+  readonly property string tooltip: current && current.conditions
+    ? String(current.conditions)
+    : (root.configured ? "Tempest Weather" : "Tempest Weather - click to set up")
 
   // ---- Lifecycle (mirrors the first-party weather panel) ----------------
 
@@ -118,6 +147,7 @@ Panel {
 
   function refresh() {
     fetchRetries = 0
+    maybeDiscoverStation()
     if (!configured) return
     if (!fetchProc.running) fetchProc.running = true
   }
@@ -131,10 +161,31 @@ Panel {
   // Lines for the right-click desktop notification: headline first, then one
   // field per line. Consumed by BarWidget.notify().
   function statusLines() {
-    if (!configured) return ["Tempest Weather is not configured", "Set the station ID and token from the gear in the popup."]
+    if (!configured) return ["Tempest Weather needs a token", "Open the popup, click the gear, and paste a Tempest API token."]
     return Model.summaryLines(report, units)
   }
   readonly property string statusGlyph: glyphStr
+
+  // Resolve a station id from the token when none is configured. WeatherFlow
+  // tokens are account-scoped; /stations returns every station on the account.
+  Process {
+    id: stationsProc
+    command: ["curl", "-fsS", "--max-time", "10",
+      "https://swd.weatherflow.com/swd/rest/stations?token=" + encodeURIComponent(root.token)]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var d = JSON.parse(String(text || "").replace(/^\s+|\s+$/g, ""))
+          if (d && d.stations && d.stations.length > 0 && d.stations[0].station_id !== undefined
+              && d.stations[0].station_id !== null)
+            root.discoveredStationId = String(d.stations[0].station_id)
+        } catch (e) {
+          // Leave discoveredStationId empty; the popup still explains setup.
+        }
+      }
+    }
+  }
 
   Process {
     id: fetchProc
@@ -287,6 +338,39 @@ Panel {
           width: weatherScroll.width
           spacing: Style.space(14)
 
+          // ---- Gear row: reserves its own strip so nothing overlaps it.
+          Item {
+            width: parent.width
+            height: Style.space(26)
+
+            Rectangle {
+              anchors.right: parent.right
+              anchors.rightMargin: Style.space(6)
+              anchors.verticalCenter: parent.verticalCenter
+              width: Style.space(26)
+              height: Style.space(26)
+              radius: Style.cornerRadius
+              color: gearArea.containsMouse
+                ? (root.bar ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "#333")
+                : "transparent"
+
+              Text {
+                anchors.centerIn: parent
+                text: root.editingSettings ? String.fromCharCode(0x00d7) : String.fromCharCode(0xf013)
+                color: root.bar ? Qt.darker(root.bar.foreground, 1.3) : "gray"
+                font.family: root.bar ? root.bar.fontFamily : "monospace"
+                font.pixelSize: root.editingSettings ? Style.font.title : Style.font.body
+              }
+              MouseArea {
+                id: gearArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.editingSettings ? root.cancelEditingSettings() : root.startEditingSettings()
+              }
+            }
+          }
+
           // ================= DATA VIEW =================
           Column {
             id: dataView
@@ -294,51 +378,71 @@ Panel {
             width: parent.width
             spacing: Style.space(14)
 
-          // ---- Hero row: big glyph + temperature on the left, stats stacked right.
+          // ---- Hero row: big glyph + temperature + condition on the left,
+          //      stats stacked on the right. The top-right corner is reserved
+          //      for the gear (a sibling row above this one).
           Item {
             width: parent.width
-            height: Math.max(heroLeft.height, heroRight.height)
+            // Hidden on a fresh install (no token, no data) so only the
+            // setup message shows.
+            visible: root.current || root.configured
+            height: visible ? Math.max(heroLeft.height, heroRight.height) : 0
 
-            Row {
+            Column {
               id: heroLeft
               anchors.left: parent.left
               anchors.leftMargin: Style.space(16)
               anchors.verticalCenter: parent.verticalCenter
-              spacing: Style.space(16)
-
-              Text {
-                id: heroIcon
-                textFormat: Text.PlainText
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.verticalCenterOffset: 5
-                text: root.glyphStr || String.fromCharCode(0x2014)
-                color: root.bar ? root.bar.foreground : "white"
-                font.family: root.bar ? root.bar.fontFamily : "monospace"
-                font.pixelSize: 64
-              }
+              spacing: Style.space(4)
 
               Row {
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: Style.space(2)
+                spacing: Style.space(16)
 
                 Text {
-                  id: tempBig
+                  id: heroIcon
                   textFormat: Text.PlainText
-                  text: root.tempStr || String.fromCharCode(0x2014)
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.verticalCenterOffset: 5
+                  text: root.glyphStr || String.fromCharCode(0x2014)
                   color: root.bar ? root.bar.foreground : "white"
                   font.family: root.bar ? root.bar.fontFamily : "monospace"
-                  font.pixelSize: 56
-                  font.bold: true
+                  font.pixelSize: 64
                 }
-                Text {
-                  textFormat: Text.PlainText
-                  text: root.current ? (root.deg + root.unitLabels.temp) : ""
-                  color: root.bar ? root.bar.foreground : "white"
-                  font.family: root.bar ? root.bar.fontFamily : "monospace"
-                  font.pixelSize: Style.font.display
-                  anchors.top: tempBig.top
-                  anchors.topMargin: Style.space(10)
+
+                Row {
+                  anchors.verticalCenter: parent.verticalCenter
+                  spacing: Style.space(2)
+
+                  Text {
+                    id: tempBig
+                    textFormat: Text.PlainText
+                    text: root.tempStr || String.fromCharCode(0x2014)
+                    color: root.bar ? root.bar.foreground : "white"
+                    font.family: root.bar ? root.bar.fontFamily : "monospace"
+                    font.pixelSize: 56
+                    font.bold: true
+                  }
+                  Text {
+                    textFormat: Text.PlainText
+                    text: root.current ? (root.deg + root.unitLabels.temp) : ""
+                    color: root.bar ? root.bar.foreground : "white"
+                    font.family: root.bar ? root.bar.fontFamily : "monospace"
+                    font.pixelSize: Style.font.display
+                    anchors.top: tempBig.top
+                    anchors.topMargin: Style.space(10)
+                  }
                 }
+              }
+
+              Text {
+                visible: root.tooltip !== ""
+                textFormat: Text.PlainText
+                text: root.tooltip.toUpperCase()
+                color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
+                font.family: root.bar ? root.bar.fontFamily : "monospace"
+                font.pixelSize: Style.font.bodySmall
+                font.letterSpacing: 1
+                leftPadding: Style.space(2)
               }
             }
 
@@ -348,17 +452,6 @@ Panel {
               anchors.rightMargin: Style.space(20)
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.space(12)
-
-              Text {
-                visible: root.tooltip !== ""
-                textFormat: Text.PlainText
-                text: root.tooltip.toUpperCase()
-                color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
-                font.family: root.bar ? root.bar.fontFamily : "monospace"
-                font.pixelSize: Style.font.body
-                font.letterSpacing: 1
-                anchors.right: parent.right
-              }
 
               Row {
                 id: statRowTop
@@ -437,8 +530,10 @@ Panel {
             visible: !root.configured
             width: parent.width
             wrapMode: Text.WordWrap
-            text: "Not configured. Click the gear to set the station ID and token, "
-              + "or export TEMPEST_STATION_ID and TEMPEST_TOKEN in the shell's environment."
+            text: root.hasToken
+              ? "Looking up the station for this token..."
+              : "Click the gear and paste a Tempest API token (from tempestwx.com/settings/tokens). "
+                + "The station is detected automatically; set a station ID only for a multi-station account."
             color: root.bar ? Qt.darker(root.bar.foreground, 1.5) : "gray"
             font.family: root.bar ? root.bar.fontFamily : "monospace"
             font.pixelSize: Style.font.bodySmall
@@ -553,12 +648,12 @@ Panel {
               font.letterSpacing: 1
             }
 
-            // -- Station ID
+            // -- Station ID (optional; auto-detected from the token)
             Column {
               width: parent.width
               spacing: Style.space(4)
               Text {
-                text: "STATION ID"
+                text: "STATION ID  (optional - blank = auto-detect)"
                 color: root.bar ? Qt.darker(root.bar.foreground, 1.5) : "gray"
                 font.family: root.bar ? root.bar.fontFamily : "monospace"
                 font.pixelSize: Style.font.caption
@@ -568,7 +663,9 @@ Panel {
                 id: stationField
                 width: parent.width
                 enabled: !root.savingSettings
-                placeholderText: "e.g. 12345"
+                placeholderText: root.discoveredStationId !== ""
+                  ? ("auto: " + root.discoveredStationId)
+                  : "auto-detected from token"
                 text: root.draftStation
                 foreground: root.bar ? root.bar.foreground : "white"
                 font.family: root.bar ? root.bar.fontFamily : "monospace"
@@ -747,34 +844,6 @@ Panel {
             }
           }
           // =============== END SETTINGS VIEW ===============
-        }
-      }
-
-      // ---- Gear: opens / closes the settings form. Top-right overlay.
-      Rectangle {
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: Style.space(10)
-        width: Style.space(26)
-        height: Style.space(26)
-        radius: Style.cornerRadius
-        color: gearArea.containsMouse
-          ? (root.bar ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "#333")
-          : "transparent"
-
-        Text {
-          anchors.centerIn: parent
-          text: root.editingSettings ? String.fromCharCode(0x00d7) : String.fromCharCode(0xf013)
-          color: root.bar ? Qt.darker(root.bar.foreground, 1.3) : "gray"
-          font.family: root.bar ? root.bar.fontFamily : "monospace"
-          font.pixelSize: root.editingSettings ? Style.font.title : Style.font.body
-        }
-        MouseArea {
-          id: gearArea
-          anchors.fill: parent
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
-          onClicked: root.editingSettings ? root.cancelEditingSettings() : root.startEditingSettings()
         }
       }
     }
