@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.dreed47.tempest-weather",
+  "name": "Tempest Weather",
+  "version": "0.1.0",
+  "author": "David Reed",
+  "description": "Bar pill and detail popup for a WeatherFlow Tempest weather station, using the station's own Better Forecast API.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Tempest Weather",
+    "description": "Local Tempest station conditions with a forecast popup",
+    "category": "Info",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "units": "metric",
+      "refreshMinutes": 10,
+      "stationId": "",
+      "token": ""
+    },
+    "schema": [
+      { "key": "units", "type": "string", "label": "Units: metric or imperial" },
+      { "key": "refreshMinutes", "type": "int", "label": "Refresh interval (minutes, min 5)" },
+      { "key": "stationId", "type": "string", "label": "Tempest station ID (blank = $TEMPEST_STATION_ID)" },
+      { "key": "token", "type": "string", "label": "Tempest API token (blank = $TEMPEST_TOKEN)" }
+    ]
+  }
+}

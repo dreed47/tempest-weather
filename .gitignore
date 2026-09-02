@@ -1,0 +1,4 @@
+# Nothing generated is tracked. Credentials live in ~/.config/omarchy/shell.json
+# or the environment, never in this repo.
+*.log
+.DS_Store

@@ -1,0 +1,114 @@
+# Tempest Weather
+
+An Omarchy shell bar widget that shows conditions from **your own
+[WeatherFlow Tempest](https://tempest.earth/) weather station** instead of a
+modelled forecast for your city.
+
+The pill shows the current condition glyph and temperature. Clicking it opens a
+popup with feels-like, wind, humidity, sea-level pressure and its trend, UV,
+dew point, and a three-day forecast — all pulled straight from the station
+owner's [Better Forecast API](https://weatherflow.github.io/Tempest/api/), so
+the readings match the Tempest app.
+
+![Tempest Weather popup](preview.png)
+
+## Requirements
+
+- Omarchy with `omarchy-shell` (the Quickshell bar).
+- `curl` on `PATH` (ships with Omarchy).
+- A Tempest station ID and a personal access token from
+  <https://tempestwx.com/settings/tokens>.
+
+## Install
+
+```bash
+omarchy plugin add https://github.com/dreed47/tempest-weather.git
+omarchy plugin enable io.github.dreed47.tempest-weather right
+```
+
+(The clone lands in `~/.config/omarchy/plugins/io.github.dreed47.tempest-weather/`,
+named after the manifest `id` regardless of the repo name.)
+
+The plugin lands disabled so you can review the code first; `enable` mounts it
+in the bar's right section. Move it with `omarchy bar move`.
+
+## Configuration
+
+The widget needs your station ID and token. It reads them, in order of
+precedence:
+
+1. The widget's own entry in `~/.config/omarchy/shell.json`.
+2. The environment variables `TEMPEST_STATION_ID` and `TEMPEST_TOKEN` in the
+   shell's environment.
+
+### Option A — shell.json (self-contained)
+
+Edit the widget's layout entry in `~/.config/omarchy/shell.json`:
+
+```json
+{
+  "id": "io.github.dreed47.tempest-weather",
+  "stationId": "12345",
+  "token": "your-tempest-token",
+  "units": "metric",
+  "refreshMinutes": 10
+}
+```
+
+The shell hot-reloads `shell.json`, so the pill updates within a few seconds.
+
+> `shell.json` is a plaintext file in your home directory. If you would rather
+> not keep the token there, use Option B.
+
+### Option B — environment variables
+
+Export the credentials where the shell can see them — for a uwsm/Hyprland
+session, `~/.config/environment.d/tempest.conf`:
+
+```
+TEMPEST_STATION_ID=12345
+TEMPEST_TOKEN=your-tempest-token
+```
+
+Log out and back in (or `systemctl --user import-environment` then restart the
+shell) so `omarchy-shell` picks them up. Leave `stationId` / `token` unset in
+`shell.json`.
+
+## Settings
+
+| Key              | Default    | Meaning                                                      |
+|------------------|------------|-------------------------------------------------------------|
+| `units`          | `metric`   | `metric` (°C, km/h, mb) or `imperial` (°F, mph, inHg)       |
+| `refreshMinutes` | `10`       | Auto-refresh interval; clamped to a minimum of 5            |
+| `stationId`      | *(unset)*  | Overrides `$TEMPEST_STATION_ID`                             |
+| `token`          | *(unset)*  | Overrides `$TEMPEST_TOKEN`                                  |
+
+## Interactions
+
+| Action         | Result                                                       |
+|----------------|-------------------------------------------------------------|
+| Left click     | Toggle the detail popup                                     |
+| Middle click   | Force a refresh                                             |
+| Right click    | Send a desktop notification with the full current summary   |
+
+The popup also responds to the shell's panel IPC:
+
+```bash
+omarchy-shell shell toggle io.github.dreed47.tempest-weather
+```
+
+## How it works
+
+`Panel.qml` owns a `curl` process that fetches
+`https://swd.weatherflow.com/swd/rest/better_forecast` for the configured
+station on the refresh interval and whenever the panel is opened. The last good
+response stays on screen if a later fetch fails, and failed fetches retry a few
+times before waiting for the next interval. `Model.js` holds the pure parsing
+and formatting helpers (Tempest `icon` string → Nerd Font glyph, unit
+handling, forecast shaping) and has no QML dependencies.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+This project is not affiliated with WeatherFlow or Tempest.
