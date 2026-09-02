@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.dreed47.tempest-weather",
   "name": "Tempest Weather",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "David Reed",
   "description": "Bar pill and detail popup for a WeatherFlow Tempest weather station, using the station's own Better Forecast API.",
   "kinds": ["bar-widget"],

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- Inline settings form: click the gear in the popup to edit station ID, API
+  token, units, and refresh interval. Save persists each field to the widget's
+  `shell.json` entry via `omarchy-bar set` (no hand-editing needed).
+- Popup now anchors under the pill instead of centering on the bar.
+
 ## 0.1.0
 
 - Initial release.

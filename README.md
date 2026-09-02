@@ -12,6 +12,11 @@ the readings match the Tempest app.
 
 ![Tempest Weather popup](preview.png)
 
+Credentials, units, and refresh interval are set from a form in the popup — no
+config file editing required:
+
+![Settings form](settings.png)
+
 ## Requirements
 
 - Omarchy with `omarchy-shell` (the Quickshell bar).
@@ -41,7 +46,15 @@ precedence:
 2. The environment variables `TEMPEST_STATION_ID` and `TEMPEST_TOKEN` in the
    shell's environment.
 
-### Option A — shell.json (self-contained)
+### Option A — the settings form (easiest)
+
+Open the popup and click the **gear** (top-right). Enter your station ID and
+token, pick units, set the refresh interval, and **Save**. Each field is
+written to the widget's `shell.json` entry with `omarchy-bar set` and the pill
+reloads immediately. Leave a field blank to fall back to the environment
+variable.
+
+### Option B — edit shell.json directly
 
 Edit the widget's layout entry in `~/.config/omarchy/shell.json`:
 
@@ -60,7 +73,7 @@ The shell hot-reloads `shell.json`, so the pill updates within a few seconds.
 > `shell.json` is a plaintext file in your home directory. If you would rather
 > not keep the token there, use Option B.
 
-### Option B — environment variables
+### Option C — environment variables
 
 Export the credentials where the shell can see them — for a uwsm/Hyprland
 session, `~/.config/environment.d/tempest.conf`:
@@ -90,6 +103,9 @@ shell) so `omarchy-shell` picks them up. Leave `stationId` / `token` unset in
 | Left click     | Toggle the detail popup                                     |
 | Middle click   | Force a refresh                                             |
 | Right click    | Send a desktop notification with the full current summary   |
+
+Inside the popup, the gear (top-right) opens the settings form; `Enter` in the
+popup opens it too, `Esc` closes it.
 
 The popup also responds to the shell's panel IPC:
 
