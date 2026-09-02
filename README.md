@@ -11,10 +11,12 @@ modelled forecast for your city.
 > works from your location with no hardware.
 
 The pill shows the current condition glyph and temperature. Clicking it opens a
-popup with feels-like, wind, humidity, sea-level pressure and its trend, UV,
-dew point, and a three-day forecast — all pulled straight from the station
-owner's [Better Forecast API](https://weatherflow.github.io/Tempest/api/), so
-the readings match the Tempest app.
+popup headed `● <STATION NAME> — LIVE · UPDATED <n>m ago`, then feels-like,
+wind, humidity, sea-level pressure and its trend, UV, dew point, and a
+three-day forecast — all pulled straight from the station owner's
+[Better Forecast API](https://weatherflow.github.io/Tempest/api/), so the
+readings match the Tempest app. The header names your station and shows how
+fresh the reading is, so it's never mistaken for a city forecast.
 
 ![Tempest Weather popup](preview.png)
 

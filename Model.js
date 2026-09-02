@@ -147,6 +147,21 @@ function pressureTrendLabel(trend) {
   return t
 }
 
+// Short "how long ago" label for a reading timestamp. epochSeconds is the
+// Tempest current_conditions.time; nowMs is Date.now(). Empty string for
+// missing or future/implausible input.
+function relativeAge(epochSeconds, nowMs) {
+  var t = parseInt(String(epochSeconds || ""), 10)
+  var now = parseInt(String(nowMs || ""), 10)
+  if (isNaN(t) || t <= 0 || isNaN(now)) return ""
+  var secs = Math.floor(now / 1000) - t
+  if (secs < 0) secs = 0
+  if (secs < 60) return "just now"
+  var mins = Math.floor(secs / 60)
+  if (mins < 90) return mins + "m ago"
+  return Math.round(mins / 60) + "h ago"
+}
+
 // One-line-per-field summary for the right-click desktop notification.
 function summaryLines(report, units) {
   var c = currentConditions(report)
@@ -186,6 +201,7 @@ if (typeof module !== "undefined") {
     currentConditions: currentConditions,
     forecastDays: forecastDays,
     pressureTrendLabel: pressureTrendLabel,
+    relativeAge: relativeAge,
     summaryLines: summaryLines
   }
 }

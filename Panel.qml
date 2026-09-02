@@ -99,9 +99,37 @@ Panel {
     ? (glyphStr + "  " + tempStr + deg)
     : neutralGlyph
 
-  readonly property string tooltip: current && current.conditions
-    ? String(current.conditions)
+  // Condition word shown under the hero temperature (e.g. "CLEAR").
+  readonly property string conditionText: current && current.conditions ? String(current.conditions) : ""
+
+  // Bar-pill hover tooltip — names the station so it's clear this is local data.
+  readonly property string tooltip: current
+    ? (stationName !== "" ? (stationName + " - your Tempest station") : "Your Tempest station")
     : (root.configured ? "Tempest Weather" : "Tempest Weather - click to set up")
+
+  // ---- "Live from your own station" header ------------------------------
+
+  readonly property string stationName: report && report.location_name
+    ? String(report.location_name).replace(/^\s+|\s+$/g, "") : ""
+  readonly property int readingEpoch: current && current.time ? parseInt(current.time, 10) : 0
+
+  // Re-evaluated every 60s (only while the popup is open) so the "Nm ago"
+  // text advances between the far less frequent weather refreshes.
+  property double nowMs: Date.now()
+  Timer {
+    interval: 60000
+    repeat: true
+    running: root.opened
+    onRunningChanged: if (running) root.nowMs = Date.now()
+    onTriggered: root.nowMs = Date.now()
+  }
+
+  readonly property string readingAge: Model.relativeAge(readingEpoch, nowMs)
+  readonly property string headerText: {
+    if (!current || readingAge === "") return ""
+    var age = "LIVE · " + (readingAge === "just now" ? "JUST NOW" : "UPDATED " + readingAge.toUpperCase())
+    return stationName !== "" ? (stationName.toUpperCase() + " — " + age) : age
+  }
 
   // ---- Lifecycle (mirrors the first-party weather panel) ----------------
 
@@ -339,11 +367,31 @@ Panel {
           spacing: Style.space(14)
 
           // ---- Gear row: reserves its own strip so nothing overlaps it.
+          //      Left side carries the "live from your own station" header.
           Item {
             width: parent.width
             height: Style.space(26)
 
+            Text {
+              id: liveHeader
+              visible: !root.editingSettings && root.headerText !== ""
+              anchors.left: parent.left
+              anchors.leftMargin: Style.space(6)
+              anchors.right: gearBtn.left
+              anchors.rightMargin: Style.space(8)
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.StyledText
+              text: "<font color='" + Color.accent + "'>" + String.fromCharCode(0x25cf)
+                + "</font>&#160;&#160;" + root.headerText
+              elide: Text.ElideRight
+              color: root.bar ? Qt.darker(root.bar.foreground, 1.5) : "gray"
+              font.family: root.bar ? root.bar.fontFamily : "monospace"
+              font.pixelSize: Style.font.caption
+              font.letterSpacing: 1
+            }
+
             Rectangle {
+              id: gearBtn
               anchors.right: parent.right
               anchors.rightMargin: Style.space(6)
               anchors.verticalCenter: parent.verticalCenter
@@ -435,9 +483,9 @@ Panel {
               }
 
               Text {
-                visible: root.tooltip !== ""
+                visible: root.conditionText !== ""
                 textFormat: Text.PlainText
-                text: root.tooltip.toUpperCase()
+                text: root.conditionText.toUpperCase()
                 color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
                 font.family: root.bar ? root.bar.fontFamily : "monospace"
                 font.pixelSize: Style.font.bodySmall

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+- Popup header: `● <STATION NAME> — LIVE · UPDATED <n>m ago`, built from
+  `location_name` and the reading timestamp. Makes it obvious the numbers are
+  live data from the user's own station, and the age advances once a minute
+  while the popup is open.
+- Bar-pill tooltip now names the station ("<name> - your Tempest station").
+- `Model.relativeAge()` helper for the freshness string.
+
 ## 0.3.0
 
 - Station ID is now optional: with only a token set, the station is looked up
