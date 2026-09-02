@@ -4,6 +4,12 @@ An Omarchy shell bar widget that shows conditions from **your own
 [WeatherFlow Tempest](https://tempest.earth/) weather station** instead of a
 modelled forecast for your city.
 
+> **This plugin is for people who own a Tempest weather station**
+> ([shop.tempest.earth](https://shop.tempest.earth/products/tempest)). It reads
+> that station's live sensor data through your Tempest account. If you don't
+> have a station, use Omarchy's built-in `omarchy.weather` widget instead — it
+> works from your location with no hardware.
+
 The pill shows the current condition glyph and temperature. Clicking it opens a
 popup with feels-like, wind, humidity, sea-level pressure and its trend, UV,
 dew point, and a three-day forecast — all pulled straight from the station
