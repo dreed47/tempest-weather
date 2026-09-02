@@ -84,21 +84,20 @@ Add `"stationId": "12345"` only for a multi-station account.
 The shell hot-reloads `shell.json`, so the pill updates within a few seconds.
 
 > `shell.json` is a plaintext file in your home directory. If you would rather
-> not keep the token there, use Option B.
+> not keep the token there, use Option C.
 
 ### Option C — environment variables
 
-Export the credentials where the shell can see them — for a uwsm/Hyprland
-session, `~/.config/environment.d/tempest.conf`:
+Put the credentials where your session exposes environment variables — for a
+uwsm/Hyprland session, `~/.config/environment.d/tempest.conf`:
 
 ```
 TEMPEST_STATION_ID=12345
 TEMPEST_TOKEN=your-tempest-token
 ```
 
-Log out and back in (or `systemctl --user import-environment` then restart the
-shell) so `omarchy-shell` picks them up. Leave `stationId` / `token` unset in
-`shell.json`.
+Log out and back in so `omarchy-shell` inherits them, then leave `stationId` /
+`token` unset in `shell.json`.
 
 ## Settings
 
