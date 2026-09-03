@@ -269,6 +269,28 @@ function nwsEventLabel(props) {
   return props && props.event ? String(props.event) : "Weather alert"
 }
 
+// Numeric severity for sorting a list of alerts (higher = worse).
+function nwsSeverityRank(props) {
+  var s = props ? String(props.severity || "").toLowerCase() : ""
+  return NWS_SEVERITY_ORDER[s] !== undefined ? NWS_SEVERITY_ORDER[s] : 0
+}
+
+// One-line summary and the full body text for the popup.
+//   headline: the NWS one-liner (event + times + office)
+//   body:     the full description, plus the call-to-action if the alert
+//             carries one
+function nwsSummary(props) {
+  if (!props) return { event: "Weather alert", headline: "", body: "" }
+  var body = String(props.description || "").replace(/^\s+|\s+$/g, "")
+  var instr = String(props.instruction || "").replace(/^\s+|\s+$/g, "")
+  if (instr !== "") body += (body !== "" ? "\n\n" : "") + "PRECAUTIONARY/PREPAREDNESS ACTIONS:\n" + instr
+  return {
+    event: nwsEventLabel(props),
+    headline: String(props.headline || props.areaDesc || "").replace(/^\s+|\s+$/g, ""),
+    body: body
+  }
+}
+
 // One-line-per-field summary for the right-click desktop notification.
 function summaryLines(report, units) {
   var c = currentConditions(report)
@@ -315,6 +337,8 @@ if (typeof module !== "undefined") {
     detectPrecipStart: detectPrecipStart,
     nwsQualifies: nwsQualifies,
     nwsEventLabel: nwsEventLabel,
+    nwsSeverityRank: nwsSeverityRank,
+    nwsSummary: nwsSummary,
     summaryLines: summaryLines
   }
 }

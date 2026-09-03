@@ -30,6 +30,24 @@ Panel {
   property var hostWidget: null
   readonly property var barIdentity: hostWidget || root
 
+  // The headless alert service (AlertService.qml). Read-only here — the popup
+  // shows a summary of any active NWS alert it is tracking.
+  readonly property var alertSvc: root.bar && root.bar.shell
+    ? root.bar.shell.serviceFor("io.github.dreed47.tempest-weather") : null
+  readonly property var nwsAlerts: alertSvc && alertSvc.nwsAlerts ? alertSvc.nwsAlerts : []
+  property bool nwsExpanded: false
+  readonly property string nwsPointUrl: {
+    if (!alertSvc || !alertSvc.lat || !alertSvc.lon) return ""
+    return "https://forecast.weather.gov/MapClick.php?lat=" + alertSvc.lat + "&lon=" + alertSvc.lon
+  }
+  function openNwsPage() {
+    if (nwsPointUrl === "") return
+    if (root.bar && typeof root.bar.run === "function")
+      root.bar.run("xdg-open " + root.bar.shellQuote(nwsPointUrl))
+    else
+      Qt.openUrlExternally(nwsPointUrl)
+  }
+
   // ---- Configuration ------------------------------------------------------
 
   // Explicit station id, from the widget setting or the environment. Blank is
@@ -580,6 +598,117 @@ Panel {
             visible: !root.editingSettings
             width: parent.width
             spacing: Style.space(14)
+
+          // ---- NWS alert banner: shown while the service is tracking an
+          //      active area warning. Summary inline, full text on demand, and
+          //      a link to the weather.gov point page (radar + full details).
+          Rectangle {
+            visible: root.nwsAlerts.length > 0
+            width: parent.width
+            height: visible ? nwsInner.implicitHeight + Style.space(16) : 0
+            radius: Style.cornerRadius
+            color: "transparent"
+            border.width: 1
+            border.color: root.bar ? root.bar.urgent : "#cc4444"
+
+            Column {
+              id: nwsInner
+              x: Style.space(10)
+              y: Style.space(8)
+              width: parent.width - Style.space(20)
+              spacing: Style.space(6)
+
+              Repeater {
+                model: root.nwsAlerts
+                Column {
+                  required property var modelData
+                  width: parent.width
+                  spacing: Style.space(2)
+                  Text {
+                    width: parent.width
+                    text: String.fromCharCode(0xf071) + "  " + Model.nwsEventLabel(modelData)
+                    color: root.bar ? root.bar.urgent : "#e66"
+                    font.family: root.bar ? root.bar.fontFamily : "monospace"
+                    font.pixelSize: Style.font.bodySmall
+                    font.bold: true
+                  }
+                  Text {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    text: String(modelData.headline || modelData.areaDesc || "")
+                    color: root.bar ? root.bar.foreground : "white"
+                    font.family: root.bar ? root.bar.fontFamily : "monospace"
+                    font.pixelSize: Style.font.caption
+                  }
+                }
+              }
+
+              Row {
+                spacing: Style.space(16)
+                Text {
+                  text: root.nwsExpanded
+                    ? (String.fromCharCode(0x25be) + " hide full text")
+                    : (String.fromCharCode(0x25b8) + " full text")
+                  color: root.bar ? Qt.darker(root.bar.foreground, 1.3) : "gray"
+                  font.family: root.bar ? root.bar.fontFamily : "monospace"
+                  font.pixelSize: Style.font.caption
+                  MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.nwsExpanded = !root.nwsExpanded
+                  }
+                }
+                Text {
+                  visible: root.nwsPointUrl !== ""
+                  text: "details & radar on weather.gov  " + String.fromCharCode(0x2197)
+                  color: Color.accent
+                  font.family: root.bar ? root.bar.fontFamily : "monospace"
+                  font.pixelSize: Style.font.caption
+                  MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.openNwsPage()
+                  }
+                }
+              }
+
+              Rectangle {
+                visible: root.nwsExpanded
+                width: parent.width
+                height: Style.space(200)
+                radius: Style.cornerRadius
+                color: "transparent"
+                border.width: 1
+                border.color: root.bar ? Qt.darker(root.bar.foreground, 1.7) : "gray"
+                clip: true
+                Flickable {
+                  anchors.fill: parent
+                  anchors.margins: Style.space(6)
+                  contentWidth: width
+                  contentHeight: nwsFull.implicitHeight
+                  boundsBehavior: Flickable.StopAtBounds
+                  interactive: contentHeight > height
+                  Text {
+                    id: nwsFull
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    textFormat: Text.PlainText
+                    text: {
+                      var out = []
+                      for (var i = 0; i < root.nwsAlerts.length; i++) {
+                        var s = Model.nwsSummary(root.nwsAlerts[i])
+                        out.push(s.event + "\n" + s.headline + "\n\n" + s.body)
+                      }
+                      return out.join("\n\n———\n\n")
+                    }
+                    color: root.bar ? Qt.darker(root.bar.foreground, 1.2) : "gray"
+                    font.family: root.bar ? root.bar.fontFamily : "monospace"
+                    font.pixelSize: Style.font.caption
+                  }
+                }
+              }
+            }
+          }
 
           // ---- Hero row: big glyph + temperature + condition on the left,
           //      stats stacked on the right. The top-right corner is reserved

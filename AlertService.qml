@@ -137,8 +137,15 @@ Item {
   property var seenNwsIds: ({})
   property bool nwsBaselined: false
   property bool nwsActive: false
+  // Qualifying active alerts (each is a GeoJSON `properties` object), severity
+  // first. The popup reads this to show a summary; a link there opens the
+  // weather.gov point page built from lat/lon.
+  property var nwsAlerts: []
 
-  onAlertNwsChanged: if (alertNws) { seenNwsIds = ({}); nwsBaselined = false }
+  onAlertNwsChanged: {
+    if (alertNws) { seenNwsIds = ({}); nwsBaselined = false }
+    else { nwsActive = false; nwsAlerts = [] }
+  }
 
   // True for a window after the most recent strike, so the bar pill can show a
   // marker. Cleared when lightningClear fires.
@@ -263,17 +270,21 @@ Item {
   function evaluateNws(features) {
     var nextSeen = ({})
     var newOnes = []
-    var anyActive = false
+    var current = []
     for (var i = 0; i < features.length; i++) {
       var p = features[i] ? features[i].properties : null
       if (!Model.nwsQualifies(p, root.nwsMinSeverity)) continue
-      anyActive = true
+      current.push(p)
       var id = String(p.id || "")
       if (id === "") continue
       nextSeen[id] = true
       if (!root.seenNwsIds[id]) newOnes.push(p)
     }
-    root.nwsActive = anyActive
+    current.sort(function(a, b) {
+      return (Model.nwsSeverityRank(b) - Model.nwsSeverityRank(a))
+    })
+    root.nwsActive = current.length > 0
+    root.nwsAlerts = current   // for the popup summary
 
     if (!root.nwsBaselined && !root.debugForce) {
       root.seenNwsIds = nextSeen   // adopt what is already active, silently

@@ -103,6 +103,13 @@ refetch kicks off. The ALERTS section rows write `alertLightning`,
   (like precip's baseline). `nwsActive` → warning triangle (`0xf071`) on the
   pill, alongside the lightning bolt. Bundled `sounds/nws.ogg`; override
   `alertNwsSound`.
+- `AlertService.nwsAlerts` (array of `properties` objects, severity-sorted) is
+  read by `Panel.qml` for the popup banner: event + `headline`, a "full text"
+  toggle (`nwsExpanded`) showing `Model.nwsSummary` (description + instruction),
+  and a link that opens `forecast.weather.gov/MapClick.php?lat=&lon=` (the only
+  reliable human page — per-alert `alerts.weather.gov` URLs were retired, and
+  the API `@id` returns JSON). Panel resolves the service itself via
+  `bar.shell.serviceFor(id)`.
 - Sound picker is an **in-panel** browser (`browsingSound` / `browseEntries`,
   `browseProc` runs `find -maxdepth 1`, `applyBrowseListing` parses `%y\t%f`).
   A `QtQuick.Dialogs` `FileDialog` is installed and works, but opens as a

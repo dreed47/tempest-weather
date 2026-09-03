@@ -163,6 +163,12 @@ are a heads-up, not a life-safety warning.
 The bar pill flags a live alert even with the popup closed: a warning triangle
 while an NWS alert is active, a lightning-bolt for 20 minutes after a strike.
 
+While an NWS alert is active the popup shows a banner at the top — the event
+name and the NWS one-line headline, a **full text** toggle that expands the
+complete alert text inline, and a **details & radar on weather.gov** link to
+the point forecast page for the station's coordinates (radar with the warning
+polygons, and the official full text).
+
 ### Sounds
 
 The plugin bundles its alert sounds (`sounds/lightning.ogg`, `rain.ogg`,

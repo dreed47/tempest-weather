@@ -28,8 +28,11 @@
   severity Severe/Extreme (`alertNwsMinSeverity` widens/narrows this); alerts
   already active when the service starts are adopted silently. Station
   coordinates come from the forecast response — no extra config. The pill shows
-  a warning triangle while an NWS alert is active. `Model.js` gains
-  `nwsQualifies` / `nwsEventLabel`.
+  a warning triangle while an NWS alert is active, and the popup shows a banner
+  with the event, the NWS headline, an inline **full text** expander, and a
+  link to the weather.gov point page (radar + official text). `AlertService`
+  exposes `nwsAlerts`; `Model.js` gains `nwsQualifies` / `nwsEventLabel` /
+  `nwsSeverityRank` / `nwsSummary`.
 - `Model.js` gains pure helpers `iconWet`, `precipKind`, `detectLightning`,
   `detectPrecipStart`.
 - Not yet released to the marketplace: this rides on the `alerts-sandbox`
