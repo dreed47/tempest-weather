@@ -158,7 +158,10 @@ notification sound finishes before you hear anything. If your notification
 sounds already work, the padding is inaudible.
 
 Leave a sound field blank to use the bundled default; set it to any path
-(`.ogg` / `.wav`, whatever `pw-play` accepts) to override. These map to the
+(`.ogg` / `.wav` / `.oga` / `.flac` / `.opus`, whatever `pw-play` accepts) to
+override. Type or paste a path, or use the **folder button** to open an
+in-panel file browser — tap a folder to open it, an audio file to pick it. The
+`▶` button plays whatever that row currently points at. These map to the
 `alertLightningSound` / `alertPrecipSound` / `alertSnowSound` keys, which you
 can also set directly in `shell.json`.
 

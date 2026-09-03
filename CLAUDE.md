@@ -93,6 +93,12 @@ refetch kicks off. The ALERTS section rows write `alertLightning`,
   `alertSnowSound` (settable in the form's SOUNDS block or shell.json) override
   per type; blank = bundled default. The form's **test** buttons run the same
   `pw-play` path via `Panel.qml`'s `soundTestProc`.
+- Sound picker is an **in-panel** browser (`browsingSound` / `browseEntries`,
+  `browseProc` runs `find -maxdepth 1`, `applyBrowseListing` parses `%y\t%f`).
+  A `QtQuick.Dialogs` `FileDialog` is installed and works, but opens as a
+  normal toplevel *behind* the `WlrLayer.Overlay` popup — unusable. Omarchy's
+  own image-picker is likewise a custom in-overlay picker, not a native
+  dialog.
 - **`AlertService.qml`, not `Service.qml`.** A file literally named
   `Service.qml` collided in Quickshell's QML type cache with the first-party
   `Service.qml` files and threw a misleading "File name case mismatch"; the

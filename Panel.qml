@@ -286,6 +286,92 @@ Panel {
     return pluginDir + "sounds/" + (kind === "lightning" ? "lightning.ogg"
       : kind === "snow" ? "snow.ogg" : "rain.ogg")
   }
+  function draftSoundFor(kind) {
+    return kind === "lightning" ? draftLightningSound
+      : kind === "snow" ? draftSnowSound : draftPrecipSound
+  }
+  function setDraftSound(kind, val) {
+    if (kind === "lightning") draftLightningSound = val
+    else if (kind === "snow") draftSnowSound = val
+    else draftPrecipSound = val
+  }
+
+  // ---- In-panel sound file browser ------------------------------------
+  //
+  // A native FileDialog opens as a normal toplevel behind this overlay-layer
+  // popup, so it is unusable here. Instead this is a small directory list
+  // rendered inside the settings card: `find` one level deep, show folders +
+  // audio files, tap to descend / pick.
+
+  property bool browsingSound: false
+  property string browseKind: ""
+  property string browseDir: ""
+  property var browseEntries: []
+  readonly property var browseAudioExt: ["wav", "ogg", "oga", "flac", "opus"]
+  readonly property string homeDir: {
+    var h = String(Quickshell.env("HOME") || "")
+    return h !== "" ? h.replace(/\/$/, "") : "/"
+  }
+
+  function parentDir(p) {
+    var s = String(p || "").replace(/\/+$/, "")
+    if (s === "" || s === "/") return "/"
+    var i = s.lastIndexOf("/")
+    return i <= 0 ? "/" : s.slice(0, i)
+  }
+
+  function openSoundBrowse(kind) {
+    browseKind = kind
+    var cur = String(draftSoundFor(kind) || "").replace(/^\s+|\s+$/g, "")
+    var start = cur !== "" ? parentDir(cur) : homeDir
+    browsingSound = true
+    listSoundDir(start)
+  }
+
+  function closeSoundBrowse() { browsingSound = false }
+
+  function listSoundDir(dir) {
+    browseDir = String(dir || "/")
+    browseEntries = []
+    browseProc.command = ["bash", "-c",
+      'find "$1" -maxdepth 1 -mindepth 1 -printf "%y\\t%f\\n" 2>/dev/null', "bash", browseDir]
+    browseProc.running = true
+  }
+
+  function applyBrowseListing(text) {
+    var lines = String(text || "").split("\n")
+    var dirs = [], files = []
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i]
+      if (!ln) continue
+      var tab = ln.indexOf("\t")
+      if (tab < 0) continue
+      var ty = ln.slice(0, tab), name = ln.slice(tab + 1)
+      if (name === "" || name.charAt(0) === ".") continue   // skip dotfiles
+      if (ty === "d") {
+        dirs.push({ type: "dir", name: name, path: (browseDir === "/" ? "" : browseDir) + "/" + name })
+      } else if (ty === "f" || ty === "l") {
+        var ext = name.slice(name.lastIndexOf(".") + 1).toLowerCase()
+        if (browseAudioExt.indexOf(ext) !== -1)
+          files.push({ type: "file", name: name, path: (browseDir === "/" ? "" : browseDir) + "/" + name })
+      }
+    }
+    dirs.sort(function(a, b) { return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1 })
+    files.sort(function(a, b) { return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1 })
+    var out = []
+    if (browseDir !== "/") out.push({ type: "up", name: "..", path: parentDir(browseDir) })
+    browseEntries = out.concat(dirs).concat(files)
+  }
+
+  function browsePick(entry) {
+    if (!entry) return
+    if (entry.type === "file") {
+      setDraftSound(browseKind, entry.path)
+      browsingSound = false
+    } else {
+      listSoundDir(entry.path)
+    }
+  }
 
   function onOffSetting(key, dflt) {
     return String(setting(key, dflt) || dflt).toLowerCase() === "on" ? "on" : "off"
@@ -370,6 +456,14 @@ Panel {
     if (soundTestProc.running) return
     soundTestProc.command = ["pw-play", root.alertSoundPath(kind, draftOverride)]
     soundTestProc.running = true
+  }
+
+  Process {
+    id: browseProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.applyBrowseListing(text)
+    }
   }
 
   IpcHandler {
@@ -1116,9 +1210,9 @@ Panel {
 
               Repeater {
                 model: [
-                  { label: "LIGHTNING", kind: "lightning", prop: "draftLightningSound" },
-                  { label: "RAIN",      kind: "precip",    prop: "draftPrecipSound" },
-                  { label: "SNOW",      kind: "snow",      prop: "draftSnowSound" }
+                  { label: "LIGHTNING", kind: "lightning" },
+                  { label: "RAIN",      kind: "precip" },
+                  { label: "SNOW",      kind: "snow" }
                 ]
 
                 Row {
@@ -1128,7 +1222,7 @@ Panel {
                   spacing: Style.space(8)
 
                   Text {
-                    width: Style.space(70)
+                    width: Style.space(66)
                     anchors.verticalCenter: parent.verticalCenter
                     text: soundRow.modelData.label
                     color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
@@ -1138,30 +1232,23 @@ Panel {
                   }
 
                   TextField {
-                    id: soundField
-                    width: parent.width - Style.space(70) - Style.space(56) - Style.space(16)
+                    width: parent.width - Style.space(66) - Style.space(32) - Style.space(32) - Style.space(24)
                     anchors.verticalCenter: parent.verticalCenter
                     enabled: !root.savingSettings
                     placeholderText: "built-in"
-                    text: soundRow.modelData.kind === "lightning" ? root.draftLightningSound
-                      : soundRow.modelData.kind === "snow" ? root.draftSnowSound
-                      : root.draftPrecipSound
+                    text: root.draftSoundFor(soundRow.modelData.kind)
                     foreground: root.bar ? root.bar.foreground : "white"
                     font.family: root.bar ? root.bar.fontFamily : "monospace"
-                    onTextChanged: {
-                      if (soundRow.modelData.kind === "lightning") root.draftLightningSound = text
-                      else if (soundRow.modelData.kind === "snow") root.draftSnowSound = text
-                      else root.draftPrecipSound = text
-                    }
+                    onTextChanged: root.setDraftSound(soundRow.modelData.kind, text)
                     Keys.onPressed: function(event) {
                       if (event.key === Qt.Key_Escape) { root.cancelEditingSettings(); event.accepted = true }
                       else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) { root.saveSettings(); event.accepted = true }
                     }
                   }
 
+                  // ▶ test
                   Rectangle {
-                    width: Style.space(56)
-                    height: Style.space(28)
+                    width: Style.space(32); height: Style.space(28)
                     anchors.verticalCenter: parent.verticalCenter
                     radius: Style.cornerRadius
                     color: "transparent"
@@ -1169,7 +1256,7 @@ Panel {
                     border.color: root.bar ? root.bar.foreground : "#cacccc"
                     Text {
                       anchors.centerIn: parent
-                      text: String.fromCharCode(0x25b6) + " test"
+                      text: String.fromCharCode(0x25b6)
                       color: root.bar ? root.bar.foreground : "#cacccc"
                       font.family: root.bar ? root.bar.fontFamily : "monospace"
                       font.pixelSize: Style.font.caption
@@ -1177,14 +1264,184 @@ Panel {
                     MouseArea {
                       anchors.fill: parent
                       cursorShape: Qt.PointingHandCursor
-                      onClicked: {
-                        var v = soundRow.modelData.kind === "lightning" ? root.draftLightningSound
-                          : soundRow.modelData.kind === "snow" ? root.draftSnowSound
-                          : root.draftPrecipSound
-                        root.testAlertSound(soundRow.modelData.kind, v)
+                      onClicked: root.testAlertSound(soundRow.modelData.kind, root.draftSoundFor(soundRow.modelData.kind))
+                    }
+                  }
+
+                  // browse (folder)
+                  Rectangle {
+                    width: Style.space(32); height: Style.space(28)
+                    anchors.verticalCenter: parent.verticalCenter
+                    radius: Style.cornerRadius
+                    readonly property bool active: root.browsingSound && root.browseKind === soundRow.modelData.kind
+                    color: active ? (root.bar ? root.bar.foreground : "#cacccc") : "transparent"
+                    border.width: active ? 0 : 1
+                    border.color: root.bar ? root.bar.foreground : "#cacccc"
+                    Text {
+                      anchors.centerIn: parent
+                      text: String.fromCharCode(0xf07b)   // nf folder
+                      color: parent.active ? (root.bar ? root.bar.background : "#101315")
+                        : (root.bar ? root.bar.foreground : "#cacccc")
+                      font.family: root.bar ? root.bar.fontFamily : "monospace"
+                      font.pixelSize: Style.font.caption
+                    }
+                    MouseArea {
+                      anchors.fill: parent
+                      cursorShape: Qt.PointingHandCursor
+                      onClicked: root.browsingSound && root.browseKind === soundRow.modelData.kind
+                        ? root.closeSoundBrowse()
+                        : root.openSoundBrowse(soundRow.modelData.kind)
+                    }
+                  }
+                }
+              }
+
+              // -- In-panel file browser (opened by a row's folder button)
+              Column {
+                visible: root.browsingSound
+                width: parent.width
+                spacing: Style.space(6)
+
+                Row {
+                  width: parent.width
+                  spacing: Style.space(8)
+                  Text {
+                    width: Style.space(90)
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "BROWSE"
+                    color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
+                    font.family: root.bar ? root.bar.fontFamily : "monospace"
+                    font.pixelSize: Style.font.caption
+                    font.letterSpacing: 1
+                  }
+                  Text {
+                    width: parent.width - Style.space(90) - Style.space(24) - Style.space(16)
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.browseDir
+                    elide: Text.ElideLeft
+                    color: root.bar ? Qt.darker(root.bar.foreground, 1.6) : "gray"
+                    font.family: root.bar ? root.bar.fontFamily : "monospace"
+                    font.pixelSize: Style.font.caption
+                  }
+                  Rectangle {
+                    width: Style.space(24); height: Style.space(24)
+                    anchors.verticalCenter: parent.verticalCenter
+                    radius: Style.cornerRadius
+                    color: "transparent"
+                    border.width: 1
+                    border.color: root.bar ? root.bar.foreground : "#cacccc"
+                    Text {
+                      anchors.centerIn: parent
+                      text: String.fromCharCode(0x00d7)
+                      color: root.bar ? root.bar.foreground : "#cacccc"
+                      font.family: root.bar ? root.bar.fontFamily : "monospace"
+                      font.pixelSize: Style.font.bodySmall
+                    }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeSoundBrowse() }
+                  }
+                }
+
+                Row {
+                  spacing: Style.space(6)
+                  Repeater {
+                    model: [ { label: "~", path: root.homeDir },
+                             { label: "/usr/share/sounds", path: "/usr/share/sounds" } ]
+                    Rectangle {
+                      required property var modelData
+                      height: Style.space(24)
+                      width: jumpLabel.implicitWidth + Style.space(16)
+                      radius: Style.cornerRadius
+                      color: "transparent"
+                      border.width: 1
+                      border.color: root.bar ? Qt.darker(root.bar.foreground, 1.7) : "gray"
+                      Text {
+                        id: jumpLabel
+                        anchors.centerIn: parent
+                        text: modelData.label
+                        color: root.bar ? root.bar.foreground : "#cacccc"
+                        font.family: root.bar ? root.bar.fontFamily : "monospace"
+                        font.pixelSize: Style.font.caption
+                      }
+                      MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.listSoundDir(modelData.path) }
+                    }
+                  }
+                }
+
+                Rectangle {
+                  width: parent.width
+                  height: Style.space(190)
+                  radius: Style.cornerRadius
+                  color: "transparent"
+                  border.width: 1
+                  border.color: root.bar ? Qt.darker(root.bar.foreground, 1.7) : "gray"
+                  clip: true
+
+                  Flickable {
+                    anchors.fill: parent
+                    anchors.margins: Style.space(4)
+                    contentWidth: width
+                    contentHeight: browseCol.implicitHeight
+                    boundsBehavior: Flickable.StopAtBounds
+                    interactive: contentHeight > height
+
+                    Column {
+                      id: browseCol
+                      width: parent.width
+
+                      Text {
+                        visible: root.browseEntries.length === 0
+                        text: "  (nothing here)"
+                        color: root.bar ? Qt.darker(root.bar.foreground, 1.7) : "gray"
+                        font.family: root.bar ? root.bar.fontFamily : "monospace"
+                        font.pixelSize: Style.font.caption
+                        font.italic: true
+                      }
+
+                      Repeater {
+                        model: root.browseEntries
+                        Rectangle {
+                          required property var modelData
+                          width: browseCol.width
+                          height: Style.space(24)
+                          color: entryArea.containsMouse
+                            ? (root.bar ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "#222")
+                            : "transparent"
+                          Text {
+                            anchors.left: parent.left
+                            anchors.leftMargin: Style.space(6)
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width - Style.space(12)
+                            elide: Text.ElideRight
+                            text: modelData.type === "up" ? ".."
+                              : modelData.type === "dir" ? (modelData.name + "/")
+                              : modelData.name
+                            color: modelData.type === "file"
+                              ? (root.bar ? root.bar.foreground : "#cacccc")
+                              : (root.bar ? Qt.darker(root.bar.foreground, 1.35) : "gray")
+                            font.family: root.bar ? root.bar.fontFamily : "monospace"
+                            font.pixelSize: Style.font.caption
+                          }
+                          MouseArea {
+                            id: entryArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.browsePick(modelData)
+                          }
+                        }
                       }
                     }
                   }
+                }
+
+                Text {
+                  width: parent.width
+                  wrapMode: Text.WordWrap
+                  text: "Tap a folder to open it, an audio file to pick it. Filters to .wav .ogg .oga .flac .opus."
+                  color: root.bar ? Qt.darker(root.bar.foreground, 1.7) : "gray"
+                  font.family: root.bar ? root.bar.fontFamily : "monospace"
+                  font.pixelSize: Style.font.caption
+                  font.italic: true
                 }
               }
             }

@@ -10,8 +10,11 @@
   `alertLightningMaxDistance`, `alertPrecipStart`, `alertNotify`,
   `alertPollSeconds`, `alertLightningSound` / `alertPrecipSound` /
   `alertSnowSound`. The settings form gains an ALERTS section: on/off switches,
-  max distance, poll interval, and a SOUNDS block with a path field and a
-  **test** button per alert type.
+  max distance, poll interval, and a SOUNDS block with, per alert type, a path
+  field, a **test** button, and a folder button that opens an in-panel file
+  browser (folders + `.wav`/`.ogg`/`.oga`/`.flac`/`.opus` files, tap to
+  descend or pick). A native file dialog can't be used — it opens behind the
+  overlay-layer popup — so the browser is rendered inside the card.
 - Alert sounds ship with the plugin (`sounds/*.ogg`): the matching freedesktop
   sound with ~1 s of leading silence, so the alert is still audible on an
   HDMI / AV-receiver output that idle-suspends and takes a moment to wake.
