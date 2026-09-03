@@ -801,17 +801,20 @@ Panel {
                       width: unitLabel.implicitWidth + Style.space(20)
                       radius: Style.cornerRadius
                       readonly property bool active: root.draftUnits === modelData
-                      color: active
-                        ? (root.bar ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "#333")
-                        : "transparent"
-                      border.width: 1
-                      border.color: root.bar ? Qt.darker(root.bar.foreground, 2.0) : "gray"
+                      // High contrast: selected = solid fill + inverted text;
+                      // unselected = clear outline. The theme's accent often
+                      // equals its foreground, so a tint alone is invisible.
+                      color: active ? (root.bar ? root.bar.foreground : "#cacccc") : "transparent"
+                      border.width: active ? 0 : 1
+                      border.color: root.bar ? root.bar.foreground : "#cacccc"
 
                       Text {
                         id: unitLabel
                         anchors.centerIn: parent
                         text: modelData
-                        color: root.bar ? root.bar.foreground : "white"
+                        color: parent.active
+                          ? (root.bar ? root.bar.background : "#101315")
+                          : (root.bar ? root.bar.foreground : "#cacccc")
                         font.family: root.bar ? root.bar.fontFamily : "monospace"
                         font.pixelSize: Style.font.bodySmall
                       }
@@ -887,19 +890,20 @@ Panel {
                     model: ["off", "on"]
                     Rectangle {
                       required property var modelData
+                      readonly property bool active: root.draftAlertLightning === modelData
                       height: Style.space(28)
                       width: lgLabel.implicitWidth + Style.space(20)
                       radius: Style.cornerRadius
-                      color: root.draftAlertLightning === modelData
-                        ? (root.bar ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "#333")
-                        : "transparent"
-                      border.width: 1
-                      border.color: root.bar ? Qt.darker(root.bar.foreground, 2.0) : "gray"
+                      color: active ? (root.bar ? root.bar.foreground : "#cacccc") : "transparent"
+                      border.width: active ? 0 : 1
+                      border.color: root.bar ? root.bar.foreground : "#cacccc"
                       Text {
                         id: lgLabel
                         anchors.centerIn: parent
                         text: modelData
-                        color: root.bar ? root.bar.foreground : "white"
+                        color: parent.active
+                          ? (root.bar ? root.bar.background : "#101315")
+                          : (root.bar ? root.bar.foreground : "#cacccc")
                         font.family: root.bar ? root.bar.fontFamily : "monospace"
                         font.pixelSize: Style.font.bodySmall
                       }
@@ -932,19 +936,20 @@ Panel {
                     model: ["off", "on"]
                     Rectangle {
                       required property var modelData
+                      readonly property bool active: root.draftAlertPrecip === modelData
                       height: Style.space(28)
                       width: pcLabel.implicitWidth + Style.space(20)
                       radius: Style.cornerRadius
-                      color: root.draftAlertPrecip === modelData
-                        ? (root.bar ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "#333")
-                        : "transparent"
-                      border.width: 1
-                      border.color: root.bar ? Qt.darker(root.bar.foreground, 2.0) : "gray"
+                      color: active ? (root.bar ? root.bar.foreground : "#cacccc") : "transparent"
+                      border.width: active ? 0 : 1
+                      border.color: root.bar ? root.bar.foreground : "#cacccc"
                       Text {
                         id: pcLabel
                         anchors.centerIn: parent
                         text: modelData
-                        color: root.bar ? root.bar.foreground : "white"
+                        color: parent.active
+                          ? (root.bar ? root.bar.background : "#101315")
+                          : (root.bar ? root.bar.foreground : "#cacccc")
                         font.family: root.bar ? root.bar.fontFamily : "monospace"
                         font.pixelSize: Style.font.bodySmall
                       }
@@ -977,19 +982,20 @@ Panel {
                     model: ["off", "on"]
                     Rectangle {
                       required property var modelData
+                      readonly property bool active: root.draftAlertNotify === modelData
                       height: Style.space(28)
                       width: ntLabel.implicitWidth + Style.space(20)
                       radius: Style.cornerRadius
-                      color: root.draftAlertNotify === modelData
-                        ? (root.bar ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "#333")
-                        : "transparent"
-                      border.width: 1
-                      border.color: root.bar ? Qt.darker(root.bar.foreground, 2.0) : "gray"
+                      color: active ? (root.bar ? root.bar.foreground : "#cacccc") : "transparent"
+                      border.width: active ? 0 : 1
+                      border.color: root.bar ? root.bar.foreground : "#cacccc"
                       Text {
                         id: ntLabel
                         anchors.centerIn: parent
                         text: modelData
-                        color: root.bar ? root.bar.foreground : "white"
+                        color: parent.active
+                          ? (root.bar ? root.bar.background : "#101315")
+                          : (root.bar ? root.bar.foreground : "#cacccc")
                         font.family: root.bar ? root.bar.fontFamily : "monospace"
                         font.pixelSize: Style.font.bodySmall
                       }
@@ -1080,13 +1086,13 @@ Panel {
                 width: saveLabel.implicitWidth + Style.space(28)
                 height: Style.space(30)
                 radius: Style.cornerRadius
-                color: root.bar ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "#444"
+                color: root.bar ? root.bar.foreground : "#cacccc"
                 opacity: root.savingSettings ? 0.6 : 1
                 Text {
                   id: saveLabel
                   anchors.centerIn: parent
                   text: root.savingSettings ? "Saving..." : "Save"
-                  color: root.bar ? root.bar.foreground : "white"
+                  color: root.bar ? root.bar.background : "#101315"
                   font.family: root.bar ? root.bar.fontFamily : "monospace"
                   font.pixelSize: Style.font.bodySmall
                 }
@@ -1104,12 +1110,12 @@ Panel {
                 radius: Style.cornerRadius
                 color: "transparent"
                 border.width: 1
-                border.color: root.bar ? Qt.darker(root.bar.foreground, 2.0) : "gray"
+                border.color: root.bar ? root.bar.foreground : "#cacccc"
                 Text {
                   id: cancelLabel
                   anchors.centerIn: parent
                   text: "Cancel"
-                  color: root.bar ? Qt.darker(root.bar.foreground, 1.3) : "gray"
+                  color: root.bar ? root.bar.foreground : "#cacccc"
                   font.family: root.bar ? root.bar.fontFamily : "monospace"
                   font.pixelSize: Style.font.bodySmall
                 }
