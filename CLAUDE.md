@@ -18,6 +18,10 @@ account's [Better Forecast API](https://weatherflow.github.io/Tempest/api/).
   (`e298970`). Waiting on an `omacom` maintainer; nothing to do on our side.
 - Installs to `~/.config/omarchy/plugins/io.github.dreed47.tempest-weather/`
   (named by the manifest `id`, not the repo name).
+- **`alerts-sandbox` branch** adds an audible lightning / rain-snow-start alert
+  service. It stays on that branch (not merged to `main`, not resubmitted)
+  until #4532 is accepted and the alerts are proven on a real storm. See the
+  "Alert service" section below.
 
 ## Files
 
@@ -26,7 +30,8 @@ account's [Better Forecast API](https://weatherflow.github.io/Tempest/api/).
 | `manifest.json` | Plugin id/version/kind. `barWidget.defaultSection: "right"`, `defaults` + inline `schema` for `units` / `refreshMinutes` / `token` / `stationId`. Bump `version` on every release. |
 | `BarWidget.qml` (~96 lines) | The bar pill. Extends `qs.Ui` `BarWidget`. Lazy-loads `Panel.qml`, injects `bar`/`settings`/`anchorItem`/`hostWidget`, and forwards the bar's popout contract (`opened`, `open`, `close`, `popoutSwitchClosing`, `closeForPopoutSwitch`). `BarIconButton` shows `panel.label`; press routing: left = toggle popup, middle = `refresh()`, right = `notify()` (desktop notification via `omarchy-notification-send`). |
 | `Panel.qml` (~899 lines) | The popup + all the logic. Extends `qs.Ui` `Panel`; UI is a `KeyboardPanel` + `PanelKeyCatcher` + `Flickable` + `Column`. Owns the `curl` fetch, the settings form, and every derived property. |
-| `Model.js` (~207 lines) | Pure helpers, no QML imports (so `node -e` can test them): Tempest `icon` string → Nerd Font glyph, unit params/labels, `dayName`, `forecastDays`, `pressureTrendLabel`, `relativeAge`, `summaryLines`. Every export is also in the `module.exports` block at the bottom. |
+| `Model.js` (~280 lines) | Pure helpers, no QML imports (so `node -e` can test them): Tempest `icon` string → Nerd Font glyph, unit params/labels, `dayName`, `forecastDays`, `pressureTrendLabel`, `relativeAge`, `summaryLines`, and the alert-edge helpers `iconWet` / `precipKind` / `detectLightning` / `detectPrecipStart`. Every export is also in the `module.exports` block at the bottom. |
+| `AlertService.qml` (~305 lines) | **alerts-sandbox only.** Headless `service`-kind entry point. Own short `curl` poll of better_forecast, diffs successive responses through `Model.js`, and on a lightning / precip-start edge runs `pw-play` + `omarchy-notification-send`. No UI, no `qs.*` imports. See "Alert service" below. |
 | `README.md` / `CHANGELOG.md` | User-facing. Plain English. |
 | `preview.png` / `settings.png` | Marketplace screenshots — regenerate when the popup layout changes. |
 
@@ -55,7 +60,41 @@ Gear in the popup's top strip toggles `editingSettings`. Fields (`stationId`,
 runs `omarchy-bar set <id> <key> <value>` once per field via `settingsSaveProc`
 (a queue re-armed `onExited`). The shell hot-reloads `shell.json` and patches
 the live widget's `settings`, so the config properties re-evaluate and a
-refetch kicks off.
+refetch kicks off. The ALERTS section rows write `alertLightning`,
+`alertLightningMaxDistance`, `alertPrecipStart`, `alertNotify`,
+`alertPollSeconds` the same way.
+
+## Alert service (`alerts-sandbox` branch)
+
+- Manifest carries two kinds: `["bar-widget", "service"]`, `keepLoaded: true`,
+  `entryPoints.service: "AlertService.qml"`. The shell mounts the service for
+  any *enabled* plugin that declares kind `service`; the widget being placed on
+  the bar is what "enables" it, so there is no separate enable step.
+- The service instance is injected `shell` / `manifest` (not `settings`). It
+  reads config from `shell.shellConfig` — it scans the bar layout / `plugins[]`
+  for its own `id` and pulls `token` / `stationId` / `units` + the `alert*`
+  keys. **Do not also push config in from `BarWidget.qml`** — an earlier
+  version did and the two sources raced, making `canPoll` flicker and the poll
+  timer thrash between 60 s and the 90 s default.
+- `BarWidget.qml` still resolves `bar.shell.serviceFor(id)` read-only, just to
+  show a bolt (`0xf0e7`) on the pill while `alertService.lightningActive`.
+- Poll → `Model.detectLightning` / `Model.detectPrecipStart` (pure, in
+  `Model.js`) → `fireLightning` / `firePrecip` → `pw-play <oga>` +
+  `omarchy-notification-send`. De-dup: `lastLightningEpoch` (only a strike
+  newer than both it and `startedAtEpoch` fires) and `lastPrecipDay` (one
+  precip-start alert per local day). State is in-memory; the `startedAtEpoch`
+  gate is what stops a restart mid-storm replaying old strikes.
+- **`AlertService.qml`, not `Service.qml`.** A file literally named
+  `Service.qml` collided in Quickshell's QML type cache with the first-party
+  `Service.qml` files and threw a misleading "File name case mismatch"; the
+  rename plus `rm -rf ~/.cache/quickshell/qmlcache` cleared it.
+- Test without a storm: set `debugForce: true` in `AlertService.qml` (bypasses
+  the `startedAtEpoch` gate) so the strike already in the API response fires
+  once. Set it back to `false` and strip the `[tempest-alert]` `console.log`
+  lines before committing.
+- Real-time seam: a UDP sidecar (hub broadcasts `evt_strike` / `evt_precip` on
+  `:50222`) or the cloud WebSocket can feed the same `evaluate()` path later;
+  the poll stays as the always-available fallback.
 
 ## Gotchas (cost real time — do not relearn)
 

@@ -5,9 +5,11 @@
   "version": "0.4.1",
   "author": "David Reed",
   "description": "Bar pill and detail popup for a WeatherFlow Tempest weather station you own, reading its live data via your Tempest account's Better Forecast API.",
-  "kinds": ["bar-widget"],
+  "kinds": ["bar-widget", "service"],
+  "keepLoaded": true,
   "entryPoints": {
-    "barWidget": "BarWidget.qml"
+    "barWidget": "BarWidget.qml",
+    "service": "AlertService.qml"
   },
   "barWidget": {
     "displayName": "Tempest Weather",
@@ -19,13 +21,29 @@
       "units": "metric",
       "refreshMinutes": 10,
       "stationId": "",
-      "token": ""
+      "token": "",
+      "alertLightning": "off",
+      "alertLightningMaxDistance": 0,
+      "alertPrecipStart": "off",
+      "alertNotify": "on",
+      "alertPollSeconds": 90,
+      "alertLightningSound": "",
+      "alertPrecipSound": "",
+      "alertSnowSound": ""
     },
     "schema": [
       { "key": "units", "type": "string", "label": "Units: metric or imperial" },
       { "key": "refreshMinutes", "type": "int", "label": "Refresh interval (minutes, min 5)" },
       { "key": "token", "type": "string", "label": "Tempest API token (blank = $TEMPEST_TOKEN)" },
-      { "key": "stationId", "type": "string", "label": "Station ID (optional; blank = auto-detect from token)" }
+      { "key": "stationId", "type": "string", "label": "Station ID (optional; blank = auto-detect from token)" },
+      { "key": "alertLightning", "type": "string", "label": "Lightning alert sound: on or off" },
+      { "key": "alertLightningMaxDistance", "type": "int", "label": "Lightning alert max distance, in your distance unit (0 = any)" },
+      { "key": "alertPrecipStart", "type": "string", "label": "Rain/snow start alert sound: on or off" },
+      { "key": "alertNotify", "type": "string", "label": "Also send a desktop notification with each alert: on or off" },
+      { "key": "alertPollSeconds", "type": "int", "label": "Alert poll interval in seconds (minimum 60)" },
+      { "key": "alertLightningSound", "type": "string", "label": "Lightning sound file path (blank = system default)" },
+      { "key": "alertPrecipSound", "type": "string", "label": "Rain sound file path (blank = system default)" },
+      { "key": "alertSnowSound", "type": "string", "label": "Snow sound file path (blank = use the rain sound)" }
     ]
   }
 }

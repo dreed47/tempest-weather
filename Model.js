@@ -162,6 +162,84 @@ function relativeAge(epochSeconds, nowMs) {
   return Math.round(mins / 60) + "h ago"
 }
 
+// ---- Alert detection -----------------------------------------------------
+//
+// The alert service (Service.qml) polls better_forecast on its own short
+// interval and calls these with the freshly parsed current_conditions. They
+// are pure decision functions: they say whether to fire, never fire anything,
+// and hold no state. The service owns the de-dup bookkeeping and passes the
+// relevant pieces back in through `opts`.
+
+// True when a current-conditions `icon` denotes precipitation falling now.
+// "possibly-*" is a forecast hedge, not an observation, so it does not count.
+function iconWet(icon) {
+  var k = String(icon || "").toLowerCase().replace(/^\s+|\s+$/g, "")
+  if (k.indexOf("possibly-") === 0) return false
+  return k.indexOf("rain") !== -1 || k.indexOf("snow") !== -1
+    || k.indexOf("sleet") !== -1 || k.indexOf("thunderstorm") !== -1
+    || k.indexOf("hail") !== -1 || k.indexOf("drizzle") !== -1
+}
+
+// Classify the precipitation type for the "started" alert. Prefers the icon,
+// falls back to the API's own rain-vs-not flag.
+function precipKind(cur) {
+  if (!cur) return "rain"
+  var k = String(cur.icon || "").toLowerCase()
+  if (k.indexOf("snow") !== -1) return "snow"
+  if (k.indexOf("sleet") !== -1 || k.indexOf("hail") !== -1) return "sleet"
+  if (cur.is_precip_local_day_rain_check === false) return "snow"
+  return "rain"
+}
+
+// Decide whether a lightning strike warrants an alert.
+//   opts.enabled       alerts turned on
+//   opts.maxDistance    only alert at or nearer than this (0 = any)
+//   opts.sinceEpoch     service start; strikes older than this are history
+//   opts.lastEpoch      epoch of the last strike already alerted on
+// Returns { fire, epoch, distance, count }. `epoch` is always the strike
+// timestamp (so the caller can advance lastEpoch even when it does not fire).
+function detectLightning(cur, opts) {
+  opts = opts || {}
+  var out = { fire: false, epoch: 0, distance: null, count: 0 }
+  if (!cur) return out
+  var epoch = parseInt(String(cur.lightning_strike_last_epoch || ""), 10)
+  if (isNaN(epoch) || epoch <= 0) return out
+  out.epoch = epoch
+  var d = cur.lightning_strike_last_distance
+  out.distance = (d === undefined || d === null || d === "") ? null : parseFloat(String(d))
+  out.count = parseInt(String(cur.lightning_strike_count_last_1hr || "0"), 10) || 0
+  if (!opts.enabled) return out
+  if (epoch <= (parseInt(String(opts.lastEpoch || 0), 10) || 0)) return out
+  if (opts.sinceEpoch && epoch < (parseInt(String(opts.sinceEpoch), 10) || 0)) return out
+  var max = parseFloat(String(opts.maxDistance || 0)) || 0
+  if (max > 0 && out.distance !== null && !isNaN(out.distance) && out.distance > max) return out
+  out.fire = true
+  return out
+}
+
+// Decide whether precipitation has just started (a dry -> wet edge).
+//   prev, cur          consecutive current_conditions samples (prev may be null)
+//   opts.enabled       alerts turned on
+//   opts.currentDay    local "yyyy-MM-dd" of `cur` (caller computes it)
+//   opts.lastFiredDay  the day a precip-start alert last fired
+// Returns { fire, kind }.
+function detectPrecipStart(prev, cur, opts) {
+  opts = opts || {}
+  var out = { fire: false, kind: "rain" }
+  if (!cur) return out
+  out.kind = precipKind(cur)
+  if (!opts.enabled || !prev) return out   // no baseline yet: never fire
+  var wetPrev = iconWet(prev.icon)
+  var wetNow = iconWet(cur.icon)
+  var minsPrev = parseInt(String(prev.precip_minutes_local_day || "0"), 10) || 0
+  var minsNow = parseInt(String(cur.precip_minutes_local_day || "0"), 10) || 0
+  var edge = (!wetPrev && wetNow) || (minsPrev === 0 && minsNow > 0 && wetNow)
+  if (!edge) return out
+  if (opts.currentDay && opts.lastFiredDay && opts.currentDay === opts.lastFiredDay) return out
+  out.fire = true
+  return out
+}
+
 // One-line-per-field summary for the right-click desktop notification.
 function summaryLines(report, units) {
   var c = currentConditions(report)
@@ -202,6 +280,10 @@ if (typeof module !== "undefined") {
     forecastDays: forecastDays,
     pressureTrendLabel: pressureTrendLabel,
     relativeAge: relativeAge,
+    iconWet: iconWet,
+    precipKind: precipKind,
+    detectLightning: detectLightning,
+    detectPrecipStart: detectPrecipStart,
     summaryLines: summaryLines
   }
 }

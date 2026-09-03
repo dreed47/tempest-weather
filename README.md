@@ -127,6 +127,37 @@ The popup also responds to the shell's panel IPC:
 omarchy-shell shell toggle io.github.dreed47.tempest-weather
 ```
 
+## Alerts
+
+The plugin also ships a headless alert service that runs whenever the widget is
+enabled. On its own short poll it watches the station for two things and, when
+one happens, plays a sound (and, by default, raises a desktop notification):
+
+| Alert | Fires when |
+|-------|------------|
+| Lightning strike | `lightning_strike_last_epoch` advances to a strike newer than the service started; optionally only within a distance you set |
+| Rain / snow start | the current conditions cross from dry to wet (a `clear` → `rainy` / `snow` / `thunderstorm` edge) |
+
+All alerts are **off by default**. Turn them on in the settings form (the gear
+in the popup) — the ALERTS section has on/off switches for each, a lightning
+max-distance, a notification switch, and the poll interval. Because alerts come
+from a poll, they lag by up to one interval (default 90 s, minimum 60 s); they
+are a heads-up, not a life-safety warning.
+
+While a lightning alert is active the bar pill shows a lightning-bolt marker for
+20 minutes.
+
+Extra settings, editable only in the widget's `shell.json` entry:
+
+| Key | Meaning |
+|-----|---------|
+| `alertLightningSound` | sound file for lightning (blank = a system warning sound) |
+| `alertPrecipSound` | sound file for rain (blank = a system sound) |
+| `alertSnowSound` | sound file for snow (blank = the rain sound) |
+
+The service reads the same token, station, and units as the widget, so it needs
+the widget placed on the bar; there is nothing else to configure.
+
 ## How it works
 
 `Panel.qml` owns a `curl` process that fetches
@@ -135,7 +166,12 @@ station on the refresh interval and whenever the panel is opened. The last good
 response stays on screen if a later fetch fails, and failed fetches retry a few
 times before waiting for the next interval. `Model.js` holds the pure parsing
 and formatting helpers (Tempest `icon` string → Nerd Font glyph, unit
-handling, forecast shaping) and has no QML dependencies.
+handling, forecast shaping, alert-edge detection) and has no QML dependencies.
+
+`AlertService.qml` is the headless alert service. It runs its own shorter
+`curl` poll of the same endpoint, diffs consecutive responses through
+`Model.js`, and on a lightning or precip-start edge runs `pw-play` for the
+sound and `omarchy-notification-send` for the notification. It holds no UI.
 
 ## License
 

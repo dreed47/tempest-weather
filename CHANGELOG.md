@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased — alerts (alerts-sandbox branch)
+
+- New headless alert service (`AlertService.qml`, manifest kind `service`). It
+  runs whenever the plugin is enabled, polls the station on its own short
+  interval, and on a lightning strike or the start of rain/snow plays a sound
+  (`pw-play`) and, by default, raises a desktop notification.
+- All alerts are off by default. New settings: `alertLightning`,
+  `alertLightningMaxDistance`, `alertPrecipStart`, `alertNotify`,
+  `alertPollSeconds`, and shell.json-only `alertLightningSound` /
+  `alertPrecipSound` / `alertSnowSound`. The settings form gains an ALERTS
+  section for the switches, max distance, and poll interval.
+- The bar pill shows a bolt marker for 20 minutes while a lightning alert is
+  active.
+- `Model.js` gains pure helpers `iconWet`, `precipKind`, `detectLightning`,
+  `detectPrecipStart`.
+- Not yet released to the marketplace: this rides on the `alerts-sandbox`
+  branch until the base plugin is accepted and the alerts prove out on a real
+  storm.
+
 ## 0.4.1
 
 - Fixed the bar pill overlapping the widget next to it in the bar's center

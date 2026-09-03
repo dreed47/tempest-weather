@@ -69,6 +69,12 @@ BarWidget {
   // open-popup indicator up with that text rather than a fixed icon slot.
   readonly property real openPanelIndicatorWidth: button.labelWidth
 
+  // The plugin's headless alert service (AlertService.qml). It polls faster
+  // than the popup and makes a sound on lightning / precip-start, reading its
+  // own config from shell.json. Referenced here only so the pill can show a
+  // bolt while a lightning alert is live.
+  readonly property var alertService: bar && bar.shell ? bar.shell.serviceFor("io.github.dreed47.tempest-weather") : null
+
   onBarChanged: injectPanel()
   onSettingsChanged: injectPanel()
 
@@ -92,7 +98,11 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: panelLoader.item ? panelLoader.item.label : ""
+    // Prefix a bolt while a lightning alert is live so the pill flags it even
+    // with the popup closed. 0xf0e7 = nf-fa-bolt, same icon font as the glyphs.
+    text: (root.alertService && root.alertService.lightningActive
+        ? String.fromCharCode(0xf0e7) + "  " : "")
+      + (panelLoader.item ? panelLoader.item.label : "")
     tooltipText: panelLoader.item ? panelLoader.item.tooltip : ""
 
     onPressed: function(b) {

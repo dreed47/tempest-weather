@@ -266,13 +266,27 @@ Panel {
   property string draftToken: ""
   property string draftUnits: "metric"
   property string draftRefresh: "10"
+  property string draftAlertLightning: "off"
+  property string draftAlertMaxDist: "0"
+  property string draftAlertPrecip: "off"
+  property string draftAlertNotify: "on"
+  property string draftAlertPoll: "90"
   property var settingsSaveQueue: []
+
+  function onOffSetting(key, dflt) {
+    return String(setting(key, dflt) || dflt).toLowerCase() === "on" ? "on" : "off"
+  }
 
   function startEditingSettings() {
     draftStation = String(setting("stationId", "") || "")
     draftToken = String(setting("token", "") || "")
     draftUnits = root.units
     draftRefresh = String(root.refreshMinutes)
+    draftAlertLightning = onOffSetting("alertLightning", "off")
+    draftAlertMaxDist = String(setting("alertLightningMaxDistance", "0") || "0")
+    draftAlertPrecip = onOffSetting("alertPrecipStart", "off")
+    draftAlertNotify = onOffSetting("alertNotify", "on")
+    draftAlertPoll = String(setting("alertPollSeconds", "90") || "90")
     savingSettings = false
     editingSettings = true
     Qt.callLater(function() {
@@ -293,11 +307,20 @@ Panel {
     savingSettings = true
     var refresh = parseInt(draftRefresh, 10)
     if (isNaN(refresh) || refresh < 5) refresh = 5
+    var maxDist = parseInt(draftAlertMaxDist, 10)
+    if (isNaN(maxDist) || maxDist < 0) maxDist = 0
+    var poll = parseInt(draftAlertPoll, 10)
+    if (isNaN(poll) || poll < 60) poll = 60
     settingsSaveQueue = [
       ["stationId", draftStation.replace(/^\s+|\s+$/g, "")],
       ["token", draftToken.replace(/^\s+|\s+$/g, "")],
       ["units", Model.normalizedUnits(draftUnits)],
-      ["refreshMinutes", String(refresh)]
+      ["refreshMinutes", String(refresh)],
+      ["alertLightning", draftAlertLightning === "on" ? "on" : "off"],
+      ["alertLightningMaxDistance", String(maxDist)],
+      ["alertPrecipStart", draftAlertPrecip === "on" ? "on" : "off"],
+      ["alertNotify", draftAlertNotify === "on" ? "on" : "off"],
+      ["alertPollSeconds", String(poll)]
     ]
     runNextSettingsSave()
   }
@@ -827,6 +850,225 @@ Panel {
                     else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) { root.saveSettings(); event.accepted = true }
                   }
                 }
+              }
+            }
+
+            // -- Alerts (handled by the headless Service.qml, not this popup)
+            Column {
+              width: parent.width
+              spacing: Style.space(12)
+
+              Text {
+                text: "ALERTS  (sound + notification)"
+                color: root.bar ? Qt.darker(root.bar.foreground, 1.5) : "gray"
+                font.family: root.bar ? root.bar.fontFamily : "monospace"
+                font.pixelSize: Style.font.caption
+                font.letterSpacing: 1
+              }
+
+              // Three on/off rows. Kept explicit (rather than a Repeater over a
+              // prop-name model) so each highlight binding is a static property
+              // path QML can actually track.
+              Row {
+                width: parent.width
+                spacing: Style.space(12)
+                Text {
+                  width: Style.space(200)
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: "LIGHTNING STRIKE"
+                  color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
+                  font.family: root.bar ? root.bar.fontFamily : "monospace"
+                  font.pixelSize: Style.font.caption
+                  font.letterSpacing: 1
+                }
+                Row {
+                  spacing: Style.space(8)
+                  Repeater {
+                    model: ["off", "on"]
+                    Rectangle {
+                      required property var modelData
+                      height: Style.space(28)
+                      width: lgLabel.implicitWidth + Style.space(20)
+                      radius: Style.cornerRadius
+                      color: root.draftAlertLightning === modelData
+                        ? (root.bar ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "#333")
+                        : "transparent"
+                      border.width: 1
+                      border.color: root.bar ? Qt.darker(root.bar.foreground, 2.0) : "gray"
+                      Text {
+                        id: lgLabel
+                        anchors.centerIn: parent
+                        text: modelData
+                        color: root.bar ? root.bar.foreground : "white"
+                        font.family: root.bar ? root.bar.fontFamily : "monospace"
+                        font.pixelSize: Style.font.bodySmall
+                      }
+                      MouseArea {
+                        anchors.fill: parent
+                        enabled: !root.savingSettings
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.draftAlertLightning = modelData
+                      }
+                    }
+                  }
+                }
+              }
+
+              Row {
+                width: parent.width
+                spacing: Style.space(12)
+                Text {
+                  width: Style.space(200)
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: "RAIN / SNOW START"
+                  color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
+                  font.family: root.bar ? root.bar.fontFamily : "monospace"
+                  font.pixelSize: Style.font.caption
+                  font.letterSpacing: 1
+                }
+                Row {
+                  spacing: Style.space(8)
+                  Repeater {
+                    model: ["off", "on"]
+                    Rectangle {
+                      required property var modelData
+                      height: Style.space(28)
+                      width: pcLabel.implicitWidth + Style.space(20)
+                      radius: Style.cornerRadius
+                      color: root.draftAlertPrecip === modelData
+                        ? (root.bar ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "#333")
+                        : "transparent"
+                      border.width: 1
+                      border.color: root.bar ? Qt.darker(root.bar.foreground, 2.0) : "gray"
+                      Text {
+                        id: pcLabel
+                        anchors.centerIn: parent
+                        text: modelData
+                        color: root.bar ? root.bar.foreground : "white"
+                        font.family: root.bar ? root.bar.fontFamily : "monospace"
+                        font.pixelSize: Style.font.bodySmall
+                      }
+                      MouseArea {
+                        anchors.fill: parent
+                        enabled: !root.savingSettings
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.draftAlertPrecip = modelData
+                      }
+                    }
+                  }
+                }
+              }
+
+              Row {
+                width: parent.width
+                spacing: Style.space(12)
+                Text {
+                  width: Style.space(200)
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: "DESKTOP NOTIFICATION"
+                  color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
+                  font.family: root.bar ? root.bar.fontFamily : "monospace"
+                  font.pixelSize: Style.font.caption
+                  font.letterSpacing: 1
+                }
+                Row {
+                  spacing: Style.space(8)
+                  Repeater {
+                    model: ["off", "on"]
+                    Rectangle {
+                      required property var modelData
+                      height: Style.space(28)
+                      width: ntLabel.implicitWidth + Style.space(20)
+                      radius: Style.cornerRadius
+                      color: root.draftAlertNotify === modelData
+                        ? (root.bar ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "#333")
+                        : "transparent"
+                      border.width: 1
+                      border.color: root.bar ? Qt.darker(root.bar.foreground, 2.0) : "gray"
+                      Text {
+                        id: ntLabel
+                        anchors.centerIn: parent
+                        text: modelData
+                        color: root.bar ? root.bar.foreground : "white"
+                        font.family: root.bar ? root.bar.fontFamily : "monospace"
+                        font.pixelSize: Style.font.bodySmall
+                      }
+                      MouseArea {
+                        anchors.fill: parent
+                        enabled: !root.savingSettings
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.draftAlertNotify = modelData
+                      }
+                    }
+                  }
+                }
+              }
+
+              Row {
+                width: parent.width
+                spacing: Style.space(28)
+
+                Column {
+                  spacing: Style.space(4)
+                  Text {
+                    text: "LIGHTNING MAX DIST  (0 = any)"
+                    color: root.bar ? Qt.darker(root.bar.foreground, 1.5) : "gray"
+                    font.family: root.bar ? root.bar.fontFamily : "monospace"
+                    font.pixelSize: Style.font.caption
+                    font.letterSpacing: 1
+                  }
+                  TextField {
+                    width: Style.space(80)
+                    enabled: !root.savingSettings
+                    text: root.draftAlertMaxDist
+                    foreground: root.bar ? root.bar.foreground : "white"
+                    font.family: root.bar ? root.bar.fontFamily : "monospace"
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    validator: IntValidator { bottom: 0; top: 300 }
+                    onTextChanged: root.draftAlertMaxDist = text
+                    Keys.onPressed: function(event) {
+                      if (event.key === Qt.Key_Escape) { root.cancelEditingSettings(); event.accepted = true }
+                      else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) { root.saveSettings(); event.accepted = true }
+                    }
+                  }
+                }
+
+                Column {
+                  spacing: Style.space(4)
+                  Text {
+                    text: "POLL (SEC, MIN 60)"
+                    color: root.bar ? Qt.darker(root.bar.foreground, 1.5) : "gray"
+                    font.family: root.bar ? root.bar.fontFamily : "monospace"
+                    font.pixelSize: Style.font.caption
+                    font.letterSpacing: 1
+                  }
+                  TextField {
+                    width: Style.space(80)
+                    enabled: !root.savingSettings
+                    text: root.draftAlertPoll
+                    foreground: root.bar ? root.bar.foreground : "white"
+                    font.family: root.bar ? root.bar.fontFamily : "monospace"
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    validator: IntValidator { bottom: 60; top: 3600 }
+                    onTextChanged: root.draftAlertPoll = text
+                    Keys.onPressed: function(event) {
+                      if (event.key === Qt.Key_Escape) { root.cancelEditingSettings(); event.accepted = true }
+                      else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) { root.saveSettings(); event.accepted = true }
+                    }
+                  }
+                }
+              }
+
+              Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                text: "Alerts fire from a background poll, so they lag by up to one interval. "
+                  + "Set custom sound files with alertLightningSound / alertPrecipSound / alertSnowSound "
+                  + "in this widget's shell.json entry."
+                color: root.bar ? Qt.darker(root.bar.foreground, 1.6) : "gray"
+                font.family: root.bar ? root.bar.fontFamily : "monospace"
+                font.pixelSize: Style.font.caption
+                font.italic: true
               }
             }
 
