@@ -140,20 +140,27 @@ one happens, plays a sound (and, by default, raises a desktop notification):
 
 All alerts are **off by default**. Turn them on in the settings form (the gear
 in the popup) — the ALERTS section has on/off switches for each, a lightning
-max-distance, a notification switch, and the poll interval. Because alerts come
+max-distance, a notification switch, the poll interval, and a SOUNDS block with
+a file-path field and a **test** button per alert type. Because alerts come
 from a poll, they lag by up to one interval (default 90 s, minimum 60 s); they
 are a heads-up, not a life-safety warning.
 
 While a lightning alert is active the bar pill shows a lightning-bolt marker for
 20 minutes.
 
-Extra settings, editable only in the widget's `shell.json` entry:
+### Sounds
 
-| Key | Meaning |
-|-----|---------|
-| `alertLightningSound` | sound file for lightning (blank = a system warning sound) |
-| `alertPrecipSound` | sound file for rain (blank = a system sound) |
-| `alertSnowSound` | sound file for snow (blank = the rain sound) |
+The plugin bundles its alert sounds (`sounds/lightning.ogg`, `rain.ogg`,
+`snow.ogg`): each is the matching freedesktop system sound with ~1 second of
+leading silence in front. That silence matters on an HDMI or AV-receiver output
+that powers down when idle — it can take a moment to wake, and a bare 0.5 s
+notification sound finishes before you hear anything. If your notification
+sounds already work, the padding is inaudible.
+
+Leave a sound field blank to use the bundled default; set it to any path
+(`.ogg` / `.wav`, whatever `pw-play` accepts) to override. These map to the
+`alertLightningSound` / `alertPrecipSound` / `alertSnowSound` keys, which you
+can also set directly in `shell.json`.
 
 The service reads the same token, station, and units as the widget, so it needs
 the widget placed on the bar; there is nothing else to configure.

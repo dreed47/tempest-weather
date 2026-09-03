@@ -271,7 +271,21 @@ Panel {
   property string draftAlertPrecip: "off"
   property string draftAlertNotify: "on"
   property string draftAlertPoll: "90"
+  property string draftLightningSound: ""
+  property string draftPrecipSound: ""
+  property string draftSnowSound: ""
   property var settingsSaveQueue: []
+
+  // Plugin install directory (…/plugins/<id>/), for the bundled default sounds
+  // and the settings-form test buttons.
+  readonly property string pluginDir: decodeURIComponent(
+    Qt.resolvedUrl(".").toString().replace(/^file:\/\//, ""))
+  function alertSoundPath(kind, draftOverride) {
+    var o = String(draftOverride || "").replace(/^\s+|\s+$/g, "")
+    if (o !== "") return o
+    return pluginDir + "sounds/" + (kind === "lightning" ? "lightning.ogg"
+      : kind === "snow" ? "snow.ogg" : "rain.ogg")
+  }
 
   function onOffSetting(key, dflt) {
     return String(setting(key, dflt) || dflt).toLowerCase() === "on" ? "on" : "off"
@@ -287,6 +301,9 @@ Panel {
     draftAlertPrecip = onOffSetting("alertPrecipStart", "off")
     draftAlertNotify = onOffSetting("alertNotify", "on")
     draftAlertPoll = String(setting("alertPollSeconds", "90") || "90")
+    draftLightningSound = String(setting("alertLightningSound", "") || "")
+    draftPrecipSound = String(setting("alertPrecipSound", "") || "")
+    draftSnowSound = String(setting("alertSnowSound", "") || "")
     savingSettings = false
     editingSettings = true
     Qt.callLater(function() {
@@ -320,7 +337,10 @@ Panel {
       ["alertLightningMaxDistance", String(maxDist)],
       ["alertPrecipStart", draftAlertPrecip === "on" ? "on" : "off"],
       ["alertNotify", draftAlertNotify === "on" ? "on" : "off"],
-      ["alertPollSeconds", String(poll)]
+      ["alertPollSeconds", String(poll)],
+      ["alertLightningSound", draftLightningSound.replace(/^\s+|\s+$/g, "")],
+      ["alertPrecipSound", draftPrecipSound.replace(/^\s+|\s+$/g, "")],
+      ["alertSnowSound", draftSnowSound.replace(/^\s+|\s+$/g, "")]
     ]
     runNextSettingsSave()
   }
@@ -341,6 +361,15 @@ Panel {
   Process {
     id: settingsSaveProc
     onExited: function(exitCode) { root.runNextSettingsSave() }
+  }
+
+  // Plays a sound from the settings-form "test" buttons: the draft override if
+  // set, otherwise the bundled default for that alert type.
+  Process { id: soundTestProc }
+  function testAlertSound(kind, draftOverride) {
+    if (soundTestProc.running) return
+    soundTestProc.command = ["pw-play", root.alertSoundPath(kind, draftOverride)]
+    soundTestProc.running = true
   }
 
   IpcHandler {
@@ -1068,13 +1097,95 @@ Panel {
               Text {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "Alerts fire from a background poll, so they lag by up to one interval. "
-                  + "Set custom sound files with alertLightningSound / alertPrecipSound / alertSnowSound "
-                  + "in this widget's shell.json entry."
+                text: "Alerts fire from a background poll, so they lag by up to one interval."
                 color: root.bar ? Qt.darker(root.bar.foreground, 1.6) : "gray"
                 font.family: root.bar ? root.bar.fontFamily : "monospace"
                 font.pixelSize: Style.font.caption
                 font.italic: true
+              }
+
+              // -- Sounds: path override + a test button per alert type.
+              //    Blank path = the sound bundled with the plugin.
+              Text {
+                text: "SOUNDS  (blank = built-in)"
+                color: root.bar ? Qt.darker(root.bar.foreground, 1.5) : "gray"
+                font.family: root.bar ? root.bar.fontFamily : "monospace"
+                font.pixelSize: Style.font.caption
+                font.letterSpacing: 1
+              }
+
+              Repeater {
+                model: [
+                  { label: "LIGHTNING", kind: "lightning", prop: "draftLightningSound" },
+                  { label: "RAIN",      kind: "precip",    prop: "draftPrecipSound" },
+                  { label: "SNOW",      kind: "snow",      prop: "draftSnowSound" }
+                ]
+
+                Row {
+                  id: soundRow
+                  required property var modelData
+                  width: parent.width
+                  spacing: Style.space(8)
+
+                  Text {
+                    width: Style.space(70)
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: soundRow.modelData.label
+                    color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
+                    font.family: root.bar ? root.bar.fontFamily : "monospace"
+                    font.pixelSize: Style.font.caption
+                    font.letterSpacing: 1
+                  }
+
+                  TextField {
+                    id: soundField
+                    width: parent.width - Style.space(70) - Style.space(56) - Style.space(16)
+                    anchors.verticalCenter: parent.verticalCenter
+                    enabled: !root.savingSettings
+                    placeholderText: "built-in"
+                    text: soundRow.modelData.kind === "lightning" ? root.draftLightningSound
+                      : soundRow.modelData.kind === "snow" ? root.draftSnowSound
+                      : root.draftPrecipSound
+                    foreground: root.bar ? root.bar.foreground : "white"
+                    font.family: root.bar ? root.bar.fontFamily : "monospace"
+                    onTextChanged: {
+                      if (soundRow.modelData.kind === "lightning") root.draftLightningSound = text
+                      else if (soundRow.modelData.kind === "snow") root.draftSnowSound = text
+                      else root.draftPrecipSound = text
+                    }
+                    Keys.onPressed: function(event) {
+                      if (event.key === Qt.Key_Escape) { root.cancelEditingSettings(); event.accepted = true }
+                      else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) { root.saveSettings(); event.accepted = true }
+                    }
+                  }
+
+                  Rectangle {
+                    width: Style.space(56)
+                    height: Style.space(28)
+                    anchors.verticalCenter: parent.verticalCenter
+                    radius: Style.cornerRadius
+                    color: "transparent"
+                    border.width: 1
+                    border.color: root.bar ? root.bar.foreground : "#cacccc"
+                    Text {
+                      anchors.centerIn: parent
+                      text: String.fromCharCode(0x25b6) + " test"
+                      color: root.bar ? root.bar.foreground : "#cacccc"
+                      font.family: root.bar ? root.bar.fontFamily : "monospace"
+                      font.pixelSize: Style.font.caption
+                    }
+                    MouseArea {
+                      anchors.fill: parent
+                      cursorShape: Qt.PointingHandCursor
+                      onClicked: {
+                        var v = soundRow.modelData.kind === "lightning" ? root.draftLightningSound
+                          : soundRow.modelData.kind === "snow" ? root.draftSnowSound
+                          : root.draftPrecipSound
+                        root.testAlertSound(soundRow.modelData.kind, v)
+                      }
+                    }
+                  }
+                }
               }
             }
 

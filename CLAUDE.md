@@ -79,11 +79,20 @@ refetch kicks off. The ALERTS section rows write `alertLightning`,
 - `BarWidget.qml` still resolves `bar.shell.serviceFor(id)` read-only, just to
   show a bolt (`0xf0e7`) on the pill while `alertService.lightningActive`.
 - Poll → `Model.detectLightning` / `Model.detectPrecipStart` (pure, in
-  `Model.js`) → `fireLightning` / `firePrecip` → `pw-play <oga>` +
+  `Model.js`) → `fireLightning` / `firePrecip` → `pw-play <sound>` +
   `omarchy-notification-send`. De-dup: `lastLightningEpoch` (only a strike
   newer than both it and `startedAtEpoch` fires) and `lastPrecipDay` (one
   precip-start alert per local day). State is in-memory; the `startedAtEpoch`
   gate is what stops a restart mid-storm replaying old strikes.
+- Sounds: `sounds/{lightning,rain,snow}.ogg` ship with the plugin — the
+  freedesktop sound + ~1 s leading silence (an idle-suspended HDMI/receiver
+  sink wakes too slowly for a bare 0.5 s clip; a real user hit exactly this).
+  Both `AlertService.qml` and `Panel.qml` resolve the dir with
+  `decodeURIComponent(Qt.resolvedUrl(".").replace(/^file:\/\//,""))`, no
+  `manifest.__sourceDir` needed. `alertLightningSound`/`alertPrecipSound`/
+  `alertSnowSound` (settable in the form's SOUNDS block or shell.json) override
+  per type; blank = bundled default. The form's **test** buttons run the same
+  `pw-play` path via `Panel.qml`'s `soundTestProc`.
 - **`AlertService.qml`, not `Service.qml`.** A file literally named
   `Service.qml` collided in Quickshell's QML type cache with the first-party
   `Service.qml` files and threw a misleading "File name case mismatch"; the

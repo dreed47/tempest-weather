@@ -85,7 +85,14 @@ Item {
   readonly property bool anyAlertEnabled: alertLightning || alertPrecipStart
   readonly property bool canPoll: anyAlertEnabled && token !== "" && stationId !== ""
 
-  readonly property string soundDir: "/usr/share/sounds/freedesktop/stereo/"
+  // Default alert sounds shipped with the plugin. Each is the matching
+  // freedesktop sound with ~1s of leading silence, so it is still audible on
+  // an HDMI/receiver output that idle-suspends and takes a moment to wake.
+  readonly property string pluginDir: decodeURIComponent(
+    Qt.resolvedUrl(".").toString().replace(/^file:\/\//, ""))
+  readonly property string defaultLightningSound: pluginDir + "sounds/lightning.ogg"
+  readonly property string defaultRainSound: pluginDir + "sounds/rain.ogg"
+  readonly property string defaultSnowSound: pluginDir + "sounds/snow.ogg"
 
   readonly property string requestUrl: "https://swd.weatherflow.com/swd/rest/better_forecast"
     + "?station_id=" + encodeURIComponent(stationId)
@@ -235,7 +242,7 @@ Item {
     lightningClear.restart()
     var dstr = (L.distance !== null && !isNaN(L.distance))
       ? (Model.roundedTo(L.distance, 0) + " " + root.distanceLabel) : ""
-    playSound(root.lightningSound !== "" ? root.lightningSound : root.soundDir + "dialog-warning.oga")
+    playSound(root.lightningSound !== "" ? root.lightningSound : root.defaultLightningSound)
     notify(
       "Lightning" + (dstr !== "" ? " " + dstr : ""),
       "Strike detected by your Tempest station"
@@ -248,7 +255,7 @@ Item {
     var snow = P.kind === "snow"
     var snd = (snow && root.snowSound !== "") ? root.snowSound
       : (root.precipSound !== "" ? root.precipSound
-        : root.soundDir + (snow ? "bell.oga" : "message.oga"))
+        : (snow ? root.defaultSnowSound : root.defaultRainSound))
     playSound(snd)
     var word = snow ? "Snow" : (P.kind === "sleet" ? "Sleet" : "Rain")
     notify(word + " started", "Precipitation detected by your Tempest station",
