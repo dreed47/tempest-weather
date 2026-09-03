@@ -33,7 +33,12 @@
   coordinates come from the forecast response — no extra config. The pill shows
   a warning triangle while an NWS alert is active, and the popup shows a banner
   with the event, the NWS headline, an inline **full text** expander, and a
-  link to the weather.gov point page (radar + official text). `AlertService`
+  link to the weather.gov point page (radar + official text). The popup also
+  has a collapsible **radar** section: the NWS RIDGE base-reflectivity loop for
+  the nearest WSR-88D (map + active warning polygons), site from
+  `api.weather.gov/points` or the `alertRadarSite` override, animated via
+  `AnimatedImage` and only fetched while expanded + the popup open (re-pulled
+  every ~2.5 min); tap for the full interactive radar. `AlertService`
   exposes `nwsAlerts`; `Model.js` gains `nwsQualifies` / `nwsEventLabel` /
   `nwsSeverityRank` / `nwsSummary`.
 - `Model.js` gains pure helpers `iconWet`, `precipKind`, `detectLightning`,

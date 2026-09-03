@@ -48,6 +48,28 @@ Panel {
     Quickshell.execDetached(["omarchy-launch-browser", nwsPointUrl])
   }
 
+  // ---- In-window radar (US, NWS RIDGE) --------------------------------
+  //
+  // Standalone popup section, collapsed by default. The animated loop GIF is
+  // only fetched while the section is expanded and the popup is open.
+  readonly property string radarStation: alertSvc ? String(alertSvc.radarStation || "") : ""
+  property bool radarExpanded: false
+  property int radarNonce: 0
+  readonly property string radarLoopUrl: radarStation !== ""
+    ? ("https://radar.weather.gov/ridge/standard/" + radarStation + "_loop.gif?n=" + radarNonce) : ""
+  readonly property string radarPageUrl: radarStation !== ""
+    ? ("https://radar.weather.gov/station/" + radarStation.toLowerCase() + "/standard") : ""
+  function openRadarPage() {
+    if (radarPageUrl !== "") Quickshell.execDetached(["omarchy-launch-browser", radarPageUrl])
+  }
+  Timer {
+    interval: 150000   // RIDGE updates every few minutes
+    repeat: true
+    running: root.radarExpanded && root.opened
+    onRunningChanged: if (running) root.radarNonce++
+    onTriggered: root.radarNonce++
+  }
+
   // ---- Configuration ------------------------------------------------------
 
   // Explicit station id, from the widget setting or the environment. Blank is
@@ -970,6 +992,75 @@ Panel {
                   }
                 }
               }
+            }
+          }
+
+          // ---- Radar (US, NWS RIDGE). Standalone, collapsed by default;
+          //      the loop GIF is only fetched while this is open.
+          Column {
+            visible: root.radarStation !== ""
+            width: parent.width
+            spacing: Style.space(6)
+
+            Text {
+              text: (root.radarExpanded ? String.fromCharCode(0x25be) : String.fromCharCode(0x25b8))
+                + " radar — " + root.radarStation
+              color: root.bar ? Qt.darker(root.bar.foreground, 1.3) : "gray"
+              font.family: root.bar ? root.bar.fontFamily : "monospace"
+              font.pixelSize: Style.font.caption
+              font.letterSpacing: 1
+              MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.radarExpanded = !root.radarExpanded
+              }
+            }
+
+            Rectangle {
+              visible: root.radarExpanded
+              width: parent.width
+              height: visible ? Math.round(width * 0.917) : 0   // RIDGE loop is 600x550
+              radius: Style.cornerRadius
+              color: "transparent"
+              border.width: 1
+              border.color: root.bar ? Qt.darker(root.bar.foreground, 1.7) : "gray"
+              clip: true
+
+              AnimatedImage {
+                id: radarImg
+                anchors.fill: parent
+                anchors.margins: 1
+                source: root.radarExpanded ? root.radarLoopUrl : ""
+                cache: false
+                asynchronous: true
+                fillMode: Image.PreserveAspectFit
+                playing: root.radarExpanded && root.opened
+              }
+              Text {
+                anchors.centerIn: parent
+                visible: radarImg.status !== Image.Ready
+                text: radarImg.status === Image.Loading ? "loading radar…"
+                  : radarImg.status === Image.Error ? "radar unavailable" : ""
+                color: root.bar ? Qt.darker(root.bar.foreground, 1.5) : "gray"
+                font.family: root.bar ? root.bar.fontFamily : "monospace"
+                font.pixelSize: Style.font.caption
+              }
+              MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.openRadarPage()
+              }
+            }
+
+            Text {
+              visible: root.radarExpanded
+              width: parent.width
+              wrapMode: Text.WordWrap
+              text: "NWS " + root.radarStation + " base reflectivity · tap for the full interactive radar"
+              color: root.bar ? Qt.darker(root.bar.foreground, 1.7) : "gray"
+              font.family: root.bar ? root.bar.fontFamily : "monospace"
+              font.pixelSize: Style.font.caption
+              font.italic: true
             }
           }
           }

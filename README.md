@@ -171,6 +171,14 @@ complete alert text inline, and a **details & radar on weather.gov** link to
 the point forecast page for the station's coordinates (radar with the warning
 polygons, and the official full text).
 
+The popup also has a **radar** section (collapsed by default) whenever NWS
+alerts are on and a radar site resolves for your location. Expand it to see the
+NWS RIDGE base-reflectivity loop for your nearest WSR-88D — map, city labels,
+and active warning polygons — animated, refreshed every few minutes. It is
+only downloaded while the section is open. Tap the image for the full
+interactive radar in a browser. US only. Override the site with
+`alertRadarSite` (e.g. `KCLE`) if the auto-detected one has a gap over you.
+
 ### Sounds
 
 The plugin bundles its alert sounds (`sounds/lightning.ogg`, `rain.ogg`,

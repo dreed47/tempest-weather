@@ -33,7 +33,8 @@
       "alertSnowSound": "",
       "alertNws": "off",
       "alertNwsLevel": "warnings",
-      "alertNwsSound": ""
+      "alertNwsSound": "",
+      "alertRadarSite": ""
     },
     "schema": [
       { "key": "units", "type": "string", "label": "Units: metric or imperial" },
@@ -51,7 +52,8 @@
       { "key": "alertSnowSound", "type": "string", "label": "Snow sound file path (blank = use the rain sound)" },
       { "key": "alertNws", "type": "string", "label": "NWS weather-service alerts (US only): on or off" },
       { "key": "alertNwsLevel", "type": "string", "label": "NWS alert level (cumulative): warnings | watches | advisories" },
-      { "key": "alertNwsSound", "type": "string", "label": "NWS alert sound file path (blank = built-in)" }
+      { "key": "alertNwsSound", "type": "string", "label": "NWS alert sound file path (blank = built-in)" },
+      { "key": "alertRadarSite", "type": "string", "label": "NWS radar site for the popup radar, e.g. KCLE (blank = auto from location)" }
     ]
   }
 }

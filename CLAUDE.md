@@ -110,6 +110,14 @@ refetch kicks off. The ALERTS section rows write `alertLightning`,
   (like precip's baseline). `nwsActive` → warning triangle (`0xf071`) on the
   pill, alongside the lightning bolt. Bundled `sounds/nws.ogg`; override
   `alertNwsSound`.
+- **Radar** (Panel.qml, `radarExpanded` default false): NWS RIDGE loop GIF
+  `radar.weather.gov/ridge/standard/<SITE>_loop.gif` (600x550, ~1 MB, 10
+  frames) in an `AnimatedImage`. `<SITE>` from `AlertService.radarStation` —
+  resolved via `api.weather.gov/points/<lat,lon>` (**≤4 decimal places or it
+  301s**; `coord4` + `curl -fsSL` handle that) → `.properties.radarStation`,
+  or the `alertRadarSite` override. `source` is `""` unless expanded, and a
+  150 s `Timer` (runs only while expanded + `opened`) bumps `radarNonce` in the
+  URL to force a refetch. Tap → `omarchy-launch-browser` the per-station page.
 - `AlertService.nwsAlerts` (array of `properties` objects, severity-sorted) is
   read by `Panel.qml` for the popup banner: event + `headline`, a "full text"
   toggle (`nwsExpanded`) showing `Model.nwsSummary` (description + instruction),

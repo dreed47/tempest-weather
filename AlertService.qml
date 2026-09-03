@@ -136,8 +136,43 @@ Item {
   property real lat: 0
   property real lon: 0
   readonly property bool haveCoords: lat !== 0 && lon !== 0
-  readonly property string nwsUrl: haveCoords
-    ? ("https://api.weather.gov/alerts/active?point=" + lat + "," + lon) : ""
+  // api.weather.gov rejects >4 decimal places on /points (301 redirect).
+  readonly property string coord4: haveCoords
+    ? (Math.round(lat * 10000) / 10000 + "," + Math.round(lon * 10000) / 10000) : ""
+  readonly property string nwsUrl: coord4 !== ""
+    ? ("https://api.weather.gov/alerts/active?point=" + coord4) : ""
+
+  // NWS radar site (e.g. "KCLE") for the popup's in-window radar loop. From
+  // api.weather.gov/points, or the alertRadarSite override.
+  readonly property string configuredRadarSite: String(cval("alertRadarSite", "")).replace(/^\s+|\s+$/g, "").toUpperCase()
+  property string resolvedRadarStation: ""
+  readonly property string radarStation: configuredRadarSite !== "" ? configuredRadarSite : resolvedRadarStation
+
+  onCoord4Changed: { resolvedRadarStation = ""; Qt.callLater(maybeFetchRadarStation) }
+
+  function maybeFetchRadarStation() {
+    if (!alertNws || coord4 === "" || configuredRadarSite !== ""
+        || resolvedRadarStation !== "" || pointsProc.running) return
+    pointsProc.running = true
+  }
+
+  Process {
+    id: pointsProc
+    command: ["curl", "-fsSL", "--max-redirs", "3", "--max-time", "15",
+      "-H", "User-Agent: tempest-weather Omarchy plugin (github.com/dreed47/tempest-weather)",
+      "-H", "Accept: application/geo+json",
+      "https://api.weather.gov/points/" + root.coord4]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var d = JSON.parse(String(text || "").replace(/^\s+|\s+$/g, ""))
+          var rs = d && d.properties ? d.properties.radarStation : null
+          if (rs) root.resolvedRadarStation = String(rs).toUpperCase()
+        } catch (e) {}
+      }
+    }
+  }
 
   // NWS alert ids already accounted for, so each alert sounds once. `baselined`
   // means the first post-startup poll has run: alerts active before that are
@@ -151,7 +186,7 @@ Item {
   property var nwsAlerts: []
 
   onAlertNwsChanged: {
-    if (alertNws) { seenNwsIds = ({}); nwsBaselined = false }
+    if (alertNws) { seenNwsIds = ({}); nwsBaselined = false; Qt.callLater(maybeFetchRadarStation) }
     else { nwsActive = false; nwsAlerts = [] }
   }
   // Re-baseline when the level widens/narrows, so the change does not surface
