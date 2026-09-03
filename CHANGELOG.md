@@ -43,9 +43,12 @@
   `nwsSeverityRank` / `nwsSummary`.
 - `Model.js` gains pure helpers `iconWet`, `precipKind`, `detectLightning`,
   `detectPrecipStart`.
+- README gains a "What it runs and connects to" section — every host contacted
+  (`swd.weatherflow.com`, `api.weather.gov`, `radar.weather.gov`), every
+  process spawned, and every file touched.
 - Not yet released to the marketplace: this rides on the `alerts-sandbox`
-  branch until the base plugin is accepted and the alerts prove out on a real
-  storm.
+  branch until the base plugin (issue #4532) is accepted and the alerts prove
+  out on a real storm.
 
 ## 0.4.1
 

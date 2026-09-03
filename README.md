@@ -237,6 +237,43 @@ coordinates. On a lightning strike, a precip-start edge, or a newly issued
 qualifying NWS alert it runs `pw-play` for the sound and
 `omarchy-notification-send` for the notification. It holds no UI.
 
+## What it runs and connects to
+
+Full inventory, for anyone auditing the plugin.
+
+**Network — only these hosts, only over HTTPS, only when the matching feature
+is configured/enabled:**
+
+| Host | What for | When |
+|------|----------|------|
+| `swd.weatherflow.com` | `better_forecast` (conditions + forecast) and `stations` (station auto-detect) | always, on the refresh/alert poll |
+| `api.weather.gov` | `alerts/active?point=…` (NWS alerts) and `points/…` (nearest radar site) | only when NWS alerts are on |
+| `radar.weather.gov` | the RIDGE radar-loop GIF, loaded by Qt's image loader | only while the popup's radar section is expanded and the popup is open |
+
+No analytics, telemetry, update checks, or any other host. Your Tempest API
+token is sent only to `swd.weatherflow.com` (in the query string, as that API
+requires); it is never logged or sent anywhere else.
+
+**Processes it spawns:**
+
+| Command | Purpose |
+|---------|---------|
+| `curl -fsS[L] …` | the API fetches above |
+| `pw-play <file>` | play an alert sound (and the settings-form **test** buttons) |
+| `omarchy-notification-send …` | the desktop notification for an alert, and the right-click summary |
+| `omarchy-bar set <id> <key> <value>` | save one settings-form field to this widget's `shell.json` entry (only on **Save**) |
+| `omarchy-launch-browser <url>` | open the NWS point / radar page in your browser (only when you click that link). URL is `forecast.weather.gov` or `radar.weather.gov` built from the station's lat/lon and radar code |
+| `bash -c 'find "$1" -maxdepth 1 …' bash <dir>` | list one directory for the in-popup sound-file browser. The path is a positional argument, never interpolated into the script; the script only runs `find` |
+
+**Files:**
+
+- Reads this widget's entry in `~/.config/omarchy/shell.json` (via the shell),
+  and `$TEMPEST_TOKEN` / `$TEMPEST_STATION_ID` as a fallback.
+- Writes **only** its own entry in `~/.config/omarchy/shell.json`, and only
+  through `omarchy-bar set` when you press Save.
+- Lists (does not read the contents of, does not write) directories you
+  navigate to in the sound-file browser.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
