@@ -42,10 +42,10 @@ Panel {
   }
   function openNwsPage() {
     if (nwsPointUrl === "") return
-    if (root.bar && typeof root.bar.run === "function")
-      root.bar.run("xdg-open " + root.bar.shellQuote(nwsPointUrl))
-    else
-      Qt.openUrlExternally(nwsPointUrl)
+    // omarchy-launch-browser is the shell's own URL opener (systemd-run +
+    // uwsm-app under the Wayland session); a bare `xdg-open` from here does
+    // not reliably spawn the browser.
+    Quickshell.execDetached(["omarchy-launch-browser", nwsPointUrl])
   }
 
   // ---- Configuration ------------------------------------------------------
