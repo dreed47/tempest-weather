@@ -1411,7 +1411,7 @@ Panel {
                 Column {
                   spacing: Style.space(4)
                   Text {
-                    text: "POLL (SEC, MIN 60)"
+                    text: "ALL ALERTS · POLL SEC"
                     color: root.bar ? Qt.darker(root.bar.foreground, 1.5) : "gray"
                     font.family: root.bar ? root.bar.fontFamily : "monospace"
                     font.pixelSize: Style.font.caption
@@ -1437,7 +1437,8 @@ Panel {
               Text {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "Alerts fire from a background poll, so they lag by up to one interval."
+                text: "One background poll drives all three — lightning, rain/snow, and NWS "
+                  + "alerts (min 60 s). Each can lag by up to one interval."
                 color: root.bar ? Qt.darker(root.bar.foreground, 1.6) : "gray"
                 font.family: root.bar ? root.bar.fontFamily : "monospace"
                 font.pixelSize: Style.font.caption
