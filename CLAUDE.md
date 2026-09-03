@@ -59,9 +59,13 @@ refetch kicks off.
 
 ## Gotchas (cost real time — do not relearn)
 
-- **Section matters.** The widget must sit in the bar's `right` section. In
-  `center`, `KeyboardPanel` with `centerOnBar: false` anchors the popup off the
-  left screen edge. Fix if it drifts: `omarchy bar move io.github.dreed47.tempest-weather --section right --after omarchy.tray`.
+- **Bar button type.** The pill paints `<glyph>  72°` — a multi-char text
+  label, so `BarWidget.qml` uses `WidgetButton` (width sized to the label,
+  like `omarchy.clock`), *not* `BarIconButton` (icon-only, clamped to a fixed
+  square slot). With `BarIconButton` the temperature overflowed the button box
+  and overlapped the next widget in the `center` section. The widget works in
+  any bar section (`left` / `center` / `right`); the popup anchors under the
+  pill in all three.
 - **`omarchy restart shell`** is required after editing `manifest.json` or the
   bar layout. `omarchy-shell shell rescanPlugins` only hot-reloads QML bodies,
   not a re-mount, so widget/manifest changes look like they "did nothing".

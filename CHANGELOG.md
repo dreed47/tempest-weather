@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1
+
+- Fixed the bar pill overlapping the widget next to it in the bar's center
+  section. The pill now uses `WidgetButton` (a text label sized to its
+  content) instead of `BarIconButton` (an icon-only slot of fixed width), so
+  the glyph-plus-temperature label no longer paints outside the button box.
+
 ## 0.4.0
 
 - Popup header: `● <STATION NAME> — LIVE · UPDATED <n>m ago`, built from

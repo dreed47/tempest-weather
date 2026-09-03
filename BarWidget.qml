@@ -64,6 +64,11 @@ BarWidget {
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
+  // The pill paints a glyph plus a temperature, so it is a text label in a
+  // padded slot (like omarchy.clock), not a single icon. Line the bar's
+  // open-popup indicator up with that text rather than a fixed icon slot.
+  readonly property real openPanelIndicatorWidth: button.labelWidth
+
   onBarChanged: injectPanel()
   onSettingsChanged: injectPanel()
 
@@ -78,12 +83,16 @@ BarWidget {
     }
   }
 
-  BarIconButton {
+  // WidgetButton, not BarIconButton: the pill is "<glyph>  72°", a multi-char
+  // text label. BarIconButton is icon-only and clamps itself to a fixed square
+  // slot, so the temperature overflows the button box and overlaps the next
+  // bar widget in the center section. WidgetButton sizes its width to the
+  // label, so implicitWidth above is honest and the bar spaces it correctly.
+  WidgetButton {
     id: button
     anchors.fill: parent
     bar: root.bar
     text: panelLoader.item ? panelLoader.item.label : ""
-    slotSize: Style.bar.statusSlot
     tooltipText: panelLoader.item ? panelLoader.item.tooltip : ""
 
     onPressed: function(b) {
