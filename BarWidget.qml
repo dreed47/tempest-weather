@@ -98,9 +98,12 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    // Prefix a bolt while a lightning alert is live so the pill flags it even
-    // with the popup closed. 0xf0e7 = nf-fa-bolt, same icon font as the glyphs.
-    text: (root.alertService && root.alertService.lightningActive
+    // Flag live alerts on the pill even with the popup closed: a warning
+    // triangle (0xf071) for an active NWS alert, a bolt (0xf0e7 nf-fa-bolt)
+    // for a recent lightning strike.
+    text: (root.alertService && root.alertService.nwsActive
+        ? String.fromCharCode(0xf071) + "  " : "")
+      + (root.alertService && root.alertService.lightningActive
         ? String.fromCharCode(0xf0e7) + "  " : "")
       + (panelLoader.item ? panelLoader.item.label : "")
     tooltipText: panelLoader.item ? panelLoader.item.tooltip : ""

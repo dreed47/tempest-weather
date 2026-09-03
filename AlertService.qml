@@ -82,7 +82,14 @@ Item {
   readonly property string precipSound: String(cval("alertPrecipSound", "")).replace(/^\s+|\s+$/g, "")
   readonly property string snowSound: String(cval("alertSnowSound", "")).replace(/^\s+|\s+$/g, "")
 
-  readonly property bool anyAlertEnabled: alertLightning || alertPrecipStart
+  // NWS (US National Weather Service) area alerts — a separate feed from the
+  // station's own sensors. Off by default; needs the station coordinates,
+  // which come free in the better_forecast response.
+  readonly property bool alertNws: String(cval("alertNws", "off")).toLowerCase() === "on"
+  readonly property string nwsSound: String(cval("alertNwsSound", "")).replace(/^\s+|\s+$/g, "")
+  readonly property string nwsMinSeverity: String(cval("alertNwsMinSeverity", "Severe"))
+
+  readonly property bool anyAlertEnabled: alertLightning || alertPrecipStart || alertNws
   readonly property bool canPoll: anyAlertEnabled && token !== "" && stationId !== ""
 
   // Default alert sounds shipped with the plugin. Each is the matching
@@ -93,6 +100,7 @@ Item {
   readonly property string defaultLightningSound: pluginDir + "sounds/lightning.ogg"
   readonly property string defaultRainSound: pluginDir + "sounds/rain.ogg"
   readonly property string defaultSnowSound: pluginDir + "sounds/snow.ogg"
+  readonly property string defaultNwsSound: pluginDir + "sounds/nws.ogg"
 
   readonly property string requestUrl: "https://swd.weatherflow.com/swd/rest/better_forecast"
     + "?station_id=" + encodeURIComponent(stationId)
@@ -114,6 +122,23 @@ Item {
   property string lastPrecipDay: ""
   property var lastReport: null
   property double lastSoundMs: 0
+
+  // Station coordinates, filled from the better_forecast response, used for the
+  // NWS alerts query.
+  property real lat: 0
+  property real lon: 0
+  readonly property bool haveCoords: lat !== 0 && lon !== 0
+  readonly property string nwsUrl: haveCoords
+    ? ("https://api.weather.gov/alerts/active?point=" + lat + "," + lon) : ""
+
+  // NWS alert ids already accounted for, so each alert sounds once. `baselined`
+  // means the first post-startup poll has run: alerts active before that are
+  // adopted silently, so a restart mid-warning is not a fresh alarm.
+  property var seenNwsIds: ({})
+  property bool nwsBaselined: false
+  property bool nwsActive: false
+
+  onAlertNwsChanged: if (alertNws) { seenNwsIds = ({}); nwsBaselined = false }
 
   // True for a window after the most recent strike, so the bar pill can show a
   // marker. Cleared when lightningClear fires.
@@ -175,8 +200,16 @@ Item {
     pollProc.running = true
   }
 
+  function pollNws() {
+    if (!alertNws || !haveCoords || nwsProc.running) return
+    nwsProc.running = true
+  }
+
   function evaluate(parsed) {
     var cur = parsed.current_conditions
+
+    var la = parseFloat(parsed.latitude), lo = parseFloat(parsed.longitude)
+    if (!isNaN(la) && !isNaN(lo) && la !== 0 && lo !== 0) { root.lat = la; root.lon = lo }
 
     var L = Model.detectLightning(cur, {
       enabled: root.alertLightning,
@@ -203,6 +236,63 @@ Item {
     }
 
     root.lastReport = parsed
+    if (root.alertNws && root.haveCoords) Qt.callLater(root.pollNws)
+  }
+
+  // ---- NWS area alerts ----------------------------------------------------
+
+  Process {
+    id: nwsProc
+    command: ["curl", "-fsS", "--max-time", "15",
+      "-H", "User-Agent: tempest-weather Omarchy plugin (github.com/dreed47/tempest-weather)",
+      "-H", "Accept: application/geo+json",
+      root.nwsUrl]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var raw = String(text || "").replace(/^\s+|\s+$/g, "")
+        if (raw === "") return
+        try {
+          var d = JSON.parse(raw)
+          if (d && Array.isArray(d.features)) root.evaluateNws(d.features)
+        } catch (e) {}
+      }
+    }
+  }
+
+  function evaluateNws(features) {
+    var nextSeen = ({})
+    var newOnes = []
+    var anyActive = false
+    for (var i = 0; i < features.length; i++) {
+      var p = features[i] ? features[i].properties : null
+      if (!Model.nwsQualifies(p, root.nwsMinSeverity)) continue
+      anyActive = true
+      var id = String(p.id || "")
+      if (id === "") continue
+      nextSeen[id] = true
+      if (!root.seenNwsIds[id]) newOnes.push(p)
+    }
+    root.nwsActive = anyActive
+
+    if (!root.nwsBaselined && !root.debugForce) {
+      root.seenNwsIds = nextSeen   // adopt what is already active, silently
+      root.nwsBaselined = true
+      return
+    }
+    root.seenNwsIds = nextSeen
+    for (var j = 0; j < newOnes.length; j++) fireNws(newOnes[j])
+  }
+
+  function fireNws(p) {
+    var sev = String(p.severity || "").toLowerCase()
+    var crit = (sev === "extreme" || sev === "severe")
+    playSound(root.nwsSound !== "" ? root.nwsSound : root.defaultNwsSound)
+    notify(
+      Model.nwsEventLabel(p),
+      String(p.headline || p.areaDesc || "Issued by the US National Weather Service"),
+      crit ? "critical" : "normal",
+      String.fromCharCode(0xf071))   // nf triangle-exclamation
   }
 
   // ---- Alert output -------------------------------------------------------
@@ -270,12 +360,13 @@ Item {
     running: root.canPoll
     repeat: true
     triggeredOnStart: true
-    onTriggered: root.poll()
+    onTriggered: { root.poll(); root.pollNws() }
   }
 
   // Re-poll promptly when alerts are switched on or credentials change.
   onCanPollChanged: if (canPoll) Qt.callLater(root.poll)
   onRequestUrlChanged: if (canPoll) Qt.callLater(root.poll)
+  onNwsUrlChanged: if (alertNws && haveCoords) Qt.callLater(root.pollNws)
 
   Timer {
     id: lightningClear

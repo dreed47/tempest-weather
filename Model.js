@@ -240,6 +240,35 @@ function detectPrecipStart(prev, cur, opts) {
   return out
 }
 
+// ---- NWS alerts ----------------------------------------------------------
+//
+// api.weather.gov/alerts/active?point=lat,lon returns a GeoJSON
+// FeatureCollection; each feature's `properties` has event / severity /
+// urgency / messageType / status / onset / expires / areaDesc / headline.
+// The alert service passes one `properties` object in at a time.
+
+var NWS_SEVERITY_ORDER = { "unknown": 0, "minor": 1, "moderate": 2, "severe": 3, "extreme": 4 }
+
+// True when an NWS alert is real, current, and at least as severe as
+// minSeverity (default "Severe" — warnings and the serious watches, not
+// routine advisories). Cancels/acks and test messages are dropped.
+function nwsQualifies(props, minSeverity) {
+  if (!props) return false
+  if (String(props.status || "") !== "Actual") return false
+  var mt = String(props.messageType || "")
+  if (mt !== "Alert" && mt !== "Update") return false
+  var need = NWS_SEVERITY_ORDER[String(minSeverity || "severe").toLowerCase()]
+  if (need === undefined) need = 3
+  var have = NWS_SEVERITY_ORDER[String(props.severity || "").toLowerCase()]
+  if (have === undefined) have = 0
+  return have >= need
+}
+
+// Short label for the alert, e.g. "Tornado Warning".
+function nwsEventLabel(props) {
+  return props && props.event ? String(props.event) : "Weather alert"
+}
+
 // One-line-per-field summary for the right-click desktop notification.
 function summaryLines(report, units) {
   var c = currentConditions(report)
@@ -284,6 +313,8 @@ if (typeof module !== "undefined") {
     precipKind: precipKind,
     detectLightning: detectLightning,
     detectPrecipStart: detectPrecipStart,
+    nwsQualifies: nwsQualifies,
+    nwsEventLabel: nwsEventLabel,
     summaryLines: summaryLines
   }
 }

@@ -274,6 +274,8 @@ Panel {
   property string draftLightningSound: ""
   property string draftPrecipSound: ""
   property string draftSnowSound: ""
+  property string draftAlertNws: "off"
+  property string draftNwsSound: ""
   property var settingsSaveQueue: []
 
   // Plugin install directory (…/plugins/<id>/), for the bundled default sounds
@@ -284,15 +286,18 @@ Panel {
     var o = String(draftOverride || "").replace(/^\s+|\s+$/g, "")
     if (o !== "") return o
     return pluginDir + "sounds/" + (kind === "lightning" ? "lightning.ogg"
-      : kind === "snow" ? "snow.ogg" : "rain.ogg")
+      : kind === "snow" ? "snow.ogg"
+      : kind === "nws" ? "nws.ogg" : "rain.ogg")
   }
   function draftSoundFor(kind) {
     return kind === "lightning" ? draftLightningSound
-      : kind === "snow" ? draftSnowSound : draftPrecipSound
+      : kind === "snow" ? draftSnowSound
+      : kind === "nws" ? draftNwsSound : draftPrecipSound
   }
   function setDraftSound(kind, val) {
     if (kind === "lightning") draftLightningSound = val
     else if (kind === "snow") draftSnowSound = val
+    else if (kind === "nws") draftNwsSound = val
     else draftPrecipSound = val
   }
 
@@ -390,6 +395,8 @@ Panel {
     draftLightningSound = String(setting("alertLightningSound", "") || "")
     draftPrecipSound = String(setting("alertPrecipSound", "") || "")
     draftSnowSound = String(setting("alertSnowSound", "") || "")
+    draftAlertNws = onOffSetting("alertNws", "off")
+    draftNwsSound = String(setting("alertNwsSound", "") || "")
     savingSettings = false
     editingSettings = true
     Qt.callLater(function() {
@@ -426,7 +433,9 @@ Panel {
       ["alertPollSeconds", String(poll)],
       ["alertLightningSound", draftLightningSound.replace(/^\s+|\s+$/g, "")],
       ["alertPrecipSound", draftPrecipSound.replace(/^\s+|\s+$/g, "")],
-      ["alertSnowSound", draftSnowSound.replace(/^\s+|\s+$/g, "")]
+      ["alertSnowSound", draftSnowSound.replace(/^\s+|\s+$/g, "")],
+      ["alertNws", draftAlertNws === "on" ? "on" : "off"],
+      ["alertNwsSound", draftNwsSound.replace(/^\s+|\s+$/g, "")]
     ]
     runNextSettingsSave()
   }
@@ -1093,6 +1102,52 @@ Panel {
                 Text {
                   width: Style.space(200)
                   anchors.verticalCenter: parent.verticalCenter
+                  text: "STORM WARNING (NWS, US)"
+                  color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
+                  font.family: root.bar ? root.bar.fontFamily : "monospace"
+                  font.pixelSize: Style.font.caption
+                  font.letterSpacing: 1
+                }
+                Row {
+                  spacing: Style.space(8)
+                  Repeater {
+                    model: ["off", "on"]
+                    Rectangle {
+                      required property var modelData
+                      readonly property bool active: root.draftAlertNws === modelData
+                      height: Style.space(28)
+                      width: nwLabel.implicitWidth + Style.space(20)
+                      radius: Style.cornerRadius
+                      color: active ? (root.bar ? root.bar.foreground : "#cacccc") : "transparent"
+                      border.width: active ? 0 : 1
+                      border.color: root.bar ? root.bar.foreground : "#cacccc"
+                      Text {
+                        id: nwLabel
+                        anchors.centerIn: parent
+                        text: modelData
+                        color: parent.active
+                          ? (root.bar ? root.bar.background : "#101315")
+                          : (root.bar ? root.bar.foreground : "#cacccc")
+                        font.family: root.bar ? root.bar.fontFamily : "monospace"
+                        font.pixelSize: Style.font.bodySmall
+                      }
+                      MouseArea {
+                        anchors.fill: parent
+                        enabled: !root.savingSettings
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.draftAlertNws = modelData
+                      }
+                    }
+                  }
+                }
+              }
+
+              Row {
+                width: parent.width
+                spacing: Style.space(12)
+                Text {
+                  width: Style.space(200)
+                  anchors.verticalCenter: parent.verticalCenter
                   text: "DESKTOP NOTIFICATION"
                   color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
                   font.family: root.bar ? root.bar.fontFamily : "monospace"
@@ -1212,7 +1267,8 @@ Panel {
                 model: [
                   { label: "LIGHTNING", kind: "lightning" },
                   { label: "RAIN",      kind: "precip" },
-                  { label: "SNOW",      kind: "snow" }
+                  { label: "SNOW",      kind: "snow" },
+                  { label: "STORM",     kind: "nws" }
                 ]
 
                 Row {

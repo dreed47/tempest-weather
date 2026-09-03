@@ -29,7 +29,10 @@
       "alertPollSeconds": 90,
       "alertLightningSound": "",
       "alertPrecipSound": "",
-      "alertSnowSound": ""
+      "alertSnowSound": "",
+      "alertNws": "off",
+      "alertNwsSound": "",
+      "alertNwsMinSeverity": "Severe"
     },
     "schema": [
       { "key": "units", "type": "string", "label": "Units: metric or imperial" },
@@ -43,7 +46,9 @@
       { "key": "alertPollSeconds", "type": "int", "label": "Alert poll interval in seconds (minimum 60)" },
       { "key": "alertLightningSound", "type": "string", "label": "Lightning sound file path (blank = system default)" },
       { "key": "alertPrecipSound", "type": "string", "label": "Rain sound file path (blank = system default)" },
-      { "key": "alertSnowSound", "type": "string", "label": "Snow sound file path (blank = use the rain sound)" }
+      { "key": "alertSnowSound", "type": "string", "label": "Snow sound file path (blank = use the rain sound)" },
+      { "key": "alertNws", "type": "string", "label": "NWS storm warning alert (US only): on or off" },
+      { "key": "alertNwsSound", "type": "string", "label": "NWS storm warning sound file path (blank = built-in)" }
     ]
   }
 }

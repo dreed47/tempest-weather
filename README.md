@@ -130,13 +130,21 @@ omarchy-shell shell toggle io.github.dreed47.tempest-weather
 ## Alerts
 
 The plugin also ships a headless alert service that runs whenever the widget is
-enabled. On its own short poll it watches the station for two things and, when
-one happens, plays a sound (and, by default, raises a desktop notification):
+enabled. On its own short poll it watches for the following and, when one
+happens, plays a sound (and, by default, raises a desktop notification):
 
 | Alert | Fires when |
 |-------|------------|
 | Lightning strike | `lightning_strike_last_epoch` advances to a strike newer than the service started; optionally only within a distance you set |
 | Rain / snow start | the current conditions cross from dry to wet (a `clear` → `rainy` / `snow` / `thunderstorm` edge) |
+| Storm warning (NWS) | a new US National Weather Service alert for the station's location is issued at severity Severe or Extreme (severe-thunderstorm / tornado / flood warnings, and the serious watches) |
+
+The first two are your station's own sensors — hyper-local, real-time. The NWS
+alert is a separate area feed (`api.weather.gov`, US only, no key), keyed off
+the station's coordinates, which the plugin already gets from the forecast
+response. Watches/warnings active *before* the service starts are adopted
+silently, so a restart mid-warning is not a fresh alarm; a newly issued one
+sounds.
 
 All alerts are **off by default**. Turn them on in the settings form (the gear
 in the popup) — the ALERTS section has on/off switches for each, a lightning
@@ -145,25 +153,29 @@ a file-path field and a **test** button per alert type. Because alerts come
 from a poll, they lag by up to one interval (default 90 s, minimum 60 s); they
 are a heads-up, not a life-safety warning.
 
-While a lightning alert is active the bar pill shows a lightning-bolt marker for
-20 minutes.
+The bar pill flags a live alert even with the popup closed: a warning triangle
+while an NWS alert is active, a lightning-bolt for 20 minutes after a strike.
 
 ### Sounds
 
 The plugin bundles its alert sounds (`sounds/lightning.ogg`, `rain.ogg`,
-`snow.ogg`): each is the matching freedesktop system sound with ~1 second of
-leading silence in front. That silence matters on an HDMI or AV-receiver output
-that powers down when idle — it can take a moment to wake, and a bare 0.5 s
-notification sound finishes before you hear anything. If your notification
-sounds already work, the padding is inaudible.
+`snow.ogg`, `nws.ogg`): each has ~1 second of leading silence in front. That
+silence matters on an HDMI or AV-receiver output that powers down when idle — it
+can take a moment to wake, and a bare 0.5 s notification sound finishes before
+you hear anything. If your notification sounds already work, the padding is
+inaudible.
 
 Leave a sound field blank to use the bundled default; set it to any path
 (`.ogg` / `.wav` / `.oga` / `.flac` / `.opus`, whatever `pw-play` accepts) to
 override. Type or paste a path, or use the **folder button** to open an
 in-panel file browser — tap a folder to open it, an audio file to pick it. The
 `▶` button plays whatever that row currently points at. These map to the
-`alertLightningSound` / `alertPrecipSound` / `alertSnowSound` keys, which you
-can also set directly in `shell.json`.
+`alertLightningSound` / `alertPrecipSound` / `alertSnowSound` / `alertNwsSound`
+keys, which you can also set directly in `shell.json`.
+
+`alertNwsMinSeverity` (shell.json only, default `Severe`) widens or narrows what
+counts: set `Moderate` to also alert on advisories and routine watches,
+`Extreme` for life-threatening only.
 
 The service reads the same token, station, and units as the widget, so it needs
 the widget placed on the bar; there is nothing else to configure.
@@ -180,8 +192,11 @@ handling, forecast shaping, alert-edge detection) and has no QML dependencies.
 
 `AlertService.qml` is the headless alert service. It runs its own shorter
 `curl` poll of the same endpoint, diffs consecutive responses through
-`Model.js`, and on a lightning or precip-start edge runs `pw-play` for the
-sound and `omarchy-notification-send` for the notification. It holds no UI.
+`Model.js`, and — when NWS alerts are on — also polls
+`https://api.weather.gov/alerts/active?point=<lat>,<lon>` for the station's
+coordinates. On a lightning strike, a precip-start edge, or a newly issued
+qualifying NWS alert it runs `pw-play` for the sound and
+`omarchy-notification-send` for the notification. It holds no UI.
 
 ## License
 

@@ -21,6 +21,15 @@
   Leaving a sound field blank uses the bundled default.
 - The bar pill shows a bolt marker for 20 minutes while a lightning alert is
   active.
+- Third alert source: US National Weather Service area alerts
+  (`api.weather.gov/alerts/active`, no key). Off by default; toggled with
+  `alertNws`, its own bundled sound (`sounds/nws.ogg`, overridable via
+  `alertNwsSound` or the form's SOUNDS block). Fires on a newly issued alert at
+  severity Severe/Extreme (`alertNwsMinSeverity` widens/narrows this); alerts
+  already active when the service starts are adopted silently. Station
+  coordinates come from the forecast response — no extra config. The pill shows
+  a warning triangle while an NWS alert is active. `Model.js` gains
+  `nwsQualifies` / `nwsEventLabel`.
 - `Model.js` gains pure helpers `iconWet`, `precipKind`, `detectLightning`,
   `detectPrecipStart`.
 - Not yet released to the marketplace: this rides on the `alerts-sandbox`

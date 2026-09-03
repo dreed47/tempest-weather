@@ -93,6 +93,16 @@ refetch kicks off. The ALERTS section rows write `alertLightning`,
   `alertSnowSound` (settable in the form's SOUNDS block or shell.json) override
   per type; blank = bundled default. The form's **test** buttons run the same
   `pw-play` path via `Panel.qml`'s `soundTestProc`.
+- **NWS alerts** (`alertNws`, off by default, US only): a separate poll of
+  `api.weather.gov/alerts/active?point=<lat>,<lon>` (needs a `User-Agent`
+  header or it 403s). Coords (`lat`/`lon`) are read from the `better_forecast`
+  response in `evaluate()` — no extra Tempest call. `Model.nwsQualifies`
+  filters (status Actual, messageType Alert/Update, severity ≥
+  `alertNwsMinSeverity` default "Severe"). `seenNwsIds` de-dups by alert id;
+  `nwsBaselined` makes the first post-startup poll adopt active alerts silently
+  (like precip's baseline). `nwsActive` → warning triangle (`0xf071`) on the
+  pill, alongside the lightning bolt. Bundled `sounds/nws.ogg`; override
+  `alertNwsSound`.
 - Sound picker is an **in-panel** browser (`browsingSound` / `browseEntries`,
   `browseProc` runs `find -maxdepth 1`, `applyBrowseListing` parses `%y\t%f`).
   A `QtQuick.Dialogs` `FileDialog` is installed and works, but opens as a
