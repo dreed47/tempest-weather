@@ -249,22 +249,32 @@ function detectPrecipStart(prev, cur, opts) {
 
 var NWS_SEVERITY_ORDER = { "unknown": 0, "minor": 1, "moderate": 2, "severe": 3, "extreme": 4 }
 
-// True when an NWS alert is real, current, and at least as severe as
-// minSeverity (default "Severe" — warnings and the serious watches, not
-// routine advisories). Cancels/acks and test messages are dropped. When
-// warningsOnly is set, Watches / Advisories / Statements are dropped too —
-// only "... Warning" events pass.
-function nwsQualifies(props, minSeverity, warningsOnly) {
+// The alert tiers NWS issues, most urgent first. "Statement" (follow-ups) and
+// anything unrecognised are folded into the "warning" tier so they are never
+// silently dropped.
+var NWS_TIER_RANK = { "warning": 3, "watch": 2, "advisory": 1 }
+var NWS_LEVEL_THRESHOLD = { "warnings": 3, "watches": 2, "advisories": 1 }
+
+// Classify an alert by its event name: "warning" | "watch" | "advisory".
+function nwsTier(props) {
+  var e = String(props && props.event ? props.event : "").toLowerCase()
+  if (/\bwatch\s*$/.test(e)) return "watch"
+  if (/\badvisory\s*$/.test(e)) return "advisory"
+  return "warning"   // Warning, Statement, Emergency, Alert, anything else
+}
+
+// True when an NWS alert is real, current, and at or above the chosen level.
+// level is cumulative: "warnings" = Warnings only; "watches" = + Watches;
+// "advisories" = + Advisories (everything). Cancels/acks and test messages
+// are always dropped.
+function nwsQualifies(props, level) {
   if (!props) return false
   if (String(props.status || "") !== "Actual") return false
   var mt = String(props.messageType || "")
   if (mt !== "Alert" && mt !== "Update") return false
-  if (warningsOnly && !/warning\s*$/i.test(String(props.event || ""))) return false
-  var need = NWS_SEVERITY_ORDER[String(minSeverity || "severe").toLowerCase()]
-  if (need === undefined) need = 3
-  var have = NWS_SEVERITY_ORDER[String(props.severity || "").toLowerCase()]
-  if (have === undefined) have = 0
-  return have >= need
+  var threshold = NWS_LEVEL_THRESHOLD[String(level || "warnings").toLowerCase()]
+  if (threshold === undefined) threshold = 3
+  return NWS_TIER_RANK[nwsTier(props)] >= threshold
 }
 
 // Short label for the alert, e.g. "Tornado Warning".
@@ -338,6 +348,7 @@ if (typeof module !== "undefined") {
     precipKind: precipKind,
     detectLightning: detectLightning,
     detectPrecipStart: detectPrecipStart,
+    nwsTier: nwsTier,
     nwsQualifies: nwsQualifies,
     nwsEventLabel: nwsEventLabel,
     nwsSeverityRank: nwsSeverityRank,

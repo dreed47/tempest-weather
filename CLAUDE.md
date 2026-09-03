@@ -96,12 +96,14 @@ refetch kicks off. The ALERTS section rows write `alertLightning`,
 - **NWS alerts** (`alertNws`, off by default, US only): a separate poll of
   `api.weather.gov/alerts/active?point=<lat>,<lon>` (needs a `User-Agent`
   header or it 403s). Coords (`lat`/`lon`) are read from the `better_forecast`
-  response in `evaluate()` — no extra Tempest call. `Model.nwsQualifies`
-  filters (status Actual, messageType Alert/Update, severity ≥
-  `alertNwsMinSeverity` default "Severe", and — when `alertNwsWarningsOnly`,
-  default on — event name ends in "Warning", so Watches/Advisories/Statements
-  drop). Changing either filter re-baselines (`onNwsWarningsOnlyChanged` /
-  `onNwsMinSeverityChanged`) so it isn't a fresh alarm. `seenNwsIds` de-dups by alert id;
+  response in `evaluate()` — no extra Tempest call. `Model.nwsQualifies(p, level)`
+  filters: status Actual, messageType Alert/Update, and tier ≥ the cumulative
+  `alertNwsLevel` (`warnings` (default, tier rank 3) → `watches` (2) →
+  `advisories` (1)). `Model.nwsTier` classifies by the event-name suffix;
+  Statement / Emergency / unrecognised fold into the warning tier. Changing the
+  level re-baselines (`onNwsLevelChanged`) so it isn't a fresh alarm. The form
+  shows it as a 3-stop cumulative control (each pill highlights when its rank ≤
+  the selected rank). `seenNwsIds` de-dups by alert id;
   `nwsBaselined` makes the first post-startup poll adopt active alerts silently
   (like precip's baseline). `nwsActive` → warning triangle (`0xf071`) on the
   pill, alongside the lightning bolt. Bundled `sounds/nws.ogg`; override

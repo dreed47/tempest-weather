@@ -293,7 +293,7 @@ Panel {
   property string draftPrecipSound: ""
   property string draftSnowSound: ""
   property string draftAlertNws: "off"
-  property string draftAlertNwsWarn: "on"
+  property string draftAlertNwsLevel: "warnings"
   property string draftNwsSound: ""
   property var settingsSaveQueue: []
 
@@ -415,7 +415,10 @@ Panel {
     draftPrecipSound = String(setting("alertPrecipSound", "") || "")
     draftSnowSound = String(setting("alertSnowSound", "") || "")
     draftAlertNws = onOffSetting("alertNws", "off")
-    draftAlertNwsWarn = onOffSetting("alertNwsWarningsOnly", "on")
+    draftAlertNwsLevel = (function() {
+      var v = String(setting("alertNwsLevel", "warnings") || "warnings").toLowerCase()
+      return (v === "watches" || v === "advisories") ? v : "warnings"
+    })()
     draftNwsSound = String(setting("alertNwsSound", "") || "")
     savingSettings = false
     editingSettings = true
@@ -455,7 +458,7 @@ Panel {
       ["alertPrecipSound", draftPrecipSound.replace(/^\s+|\s+$/g, "")],
       ["alertSnowSound", draftSnowSound.replace(/^\s+|\s+$/g, "")],
       ["alertNws", draftAlertNws === "on" ? "on" : "off"],
-      ["alertNwsWarningsOnly", draftAlertNwsWarn === "on" ? "on" : "off"],
+      ["alertNwsLevel", draftAlertNwsLevel],
       ["alertNwsSound", draftNwsSound.replace(/^\s+|\s+$/g, "")]
     ]
     runNextSettingsSave()
@@ -1234,7 +1237,7 @@ Panel {
                 Text {
                   width: Style.space(200)
                   anchors.verticalCenter: parent.verticalCenter
-                  text: "STORM WARNING (NWS, US)"
+                  text: "NWS ALERTS (US)"
                   color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
                   font.family: root.bar ? root.bar.fontFamily : "monospace"
                   font.pixelSize: Style.font.caption
@@ -1274,36 +1277,45 @@ Panel {
                 }
               }
 
+              // Cumulative level: each stop includes the ones to its left.
               Row {
+                id: nwsLevelOuter
                 width: parent.width
                 spacing: Style.space(12)
                 opacity: root.draftAlertNws === "on" ? 1 : 0.4
+                readonly property int selRank: root.draftAlertNwsLevel === "advisories" ? 2
+                  : root.draftAlertNwsLevel === "watches" ? 1 : 0
                 Text {
-                  width: Style.space(200)
+                  width: Style.space(64)
                   anchors.verticalCenter: parent.verticalCenter
-                  text: "  · warnings only"
+                  text: " · level"
                   color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
                   font.family: root.bar ? root.bar.fontFamily : "monospace"
                   font.pixelSize: Style.font.caption
                   font.letterSpacing: 1
                 }
                 Row {
+                  id: nwsLevelRow
                   spacing: Style.space(8)
                   Repeater {
-                    model: ["off", "on"]
+                    model: [
+                      { key: "warnings",   label: "Warnings",   rank: 0 },
+                      { key: "watches",    label: "Watches",    rank: 1 },
+                      { key: "advisories", label: "Advisories", rank: 2 }
+                    ]
                     Rectangle {
                       required property var modelData
-                      readonly property bool active: root.draftAlertNwsWarn === modelData
+                      readonly property bool active: modelData.rank <= nwsLevelOuter.selRank
                       height: Style.space(28)
-                      width: nwoLabel.implicitWidth + Style.space(20)
+                      width: nwsLvlLabel.implicitWidth + Style.space(20)
                       radius: Style.cornerRadius
                       color: active ? (root.bar ? root.bar.foreground : "#cacccc") : "transparent"
                       border.width: active ? 0 : 1
                       border.color: root.bar ? root.bar.foreground : "#cacccc"
                       Text {
-                        id: nwoLabel
+                        id: nwsLvlLabel
                         anchors.centerIn: parent
-                        text: modelData
+                        text: modelData.label
                         color: parent.active
                           ? (root.bar ? root.bar.background : "#101315")
                           : (root.bar ? root.bar.foreground : "#cacccc")
@@ -1314,7 +1326,7 @@ Panel {
                         anchors.fill: parent
                         enabled: !root.savingSettings && root.draftAlertNws === "on"
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.draftAlertNwsWarn = modelData
+                        onClicked: root.draftAlertNwsLevel = modelData.key
                       }
                     }
                   }

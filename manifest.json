@@ -31,9 +31,8 @@
       "alertPrecipSound": "",
       "alertSnowSound": "",
       "alertNws": "off",
-      "alertNwsWarningsOnly": "on",
-      "alertNwsSound": "",
-      "alertNwsMinSeverity": "Severe"
+      "alertNwsLevel": "warnings",
+      "alertNwsSound": ""
     },
     "schema": [
       { "key": "units", "type": "string", "label": "Units: metric or imperial" },
@@ -48,9 +47,9 @@
       { "key": "alertLightningSound", "type": "string", "label": "Lightning sound file path (blank = system default)" },
       { "key": "alertPrecipSound", "type": "string", "label": "Rain sound file path (blank = system default)" },
       { "key": "alertSnowSound", "type": "string", "label": "Snow sound file path (blank = use the rain sound)" },
-      { "key": "alertNws", "type": "string", "label": "NWS storm warning alert (US only): on or off" },
-      { "key": "alertNwsWarningsOnly", "type": "string", "label": "NWS: warnings only, skip watches and advisories: on or off" },
-      { "key": "alertNwsSound", "type": "string", "label": "NWS storm warning sound file path (blank = built-in)" }
+      { "key": "alertNws", "type": "string", "label": "NWS weather-service alerts (US only): on or off" },
+      { "key": "alertNwsLevel", "type": "string", "label": "NWS alert level (cumulative): warnings | watches | advisories" },
+      { "key": "alertNwsSound", "type": "string", "label": "NWS alert sound file path (blank = built-in)" }
     ]
   }
 }
