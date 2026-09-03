@@ -31,6 +31,7 @@
       "alertPrecipSound": "",
       "alertSnowSound": "",
       "alertNws": "off",
+      "alertNwsWarningsOnly": "on",
       "alertNwsSound": "",
       "alertNwsMinSeverity": "Severe"
     },
@@ -48,6 +49,7 @@
       { "key": "alertPrecipSound", "type": "string", "label": "Rain sound file path (blank = system default)" },
       { "key": "alertSnowSound", "type": "string", "label": "Snow sound file path (blank = use the rain sound)" },
       { "key": "alertNws", "type": "string", "label": "NWS storm warning alert (US only): on or off" },
+      { "key": "alertNwsWarningsOnly", "type": "string", "label": "NWS: warnings only, skip watches and advisories: on or off" },
       { "key": "alertNwsSound", "type": "string", "label": "NWS storm warning sound file path (blank = built-in)" }
     ]
   }

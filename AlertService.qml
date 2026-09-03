@@ -88,6 +88,8 @@ Item {
   readonly property bool alertNws: String(cval("alertNws", "off")).toLowerCase() === "on"
   readonly property string nwsSound: String(cval("alertNwsSound", "")).replace(/^\s+|\s+$/g, "")
   readonly property string nwsMinSeverity: String(cval("alertNwsMinSeverity", "Severe"))
+  // Warnings only (default): drop Watches / Advisories / Statements.
+  readonly property bool nwsWarningsOnly: String(cval("alertNwsWarningsOnly", "on")).toLowerCase() === "on"
 
   readonly property bool anyAlertEnabled: alertLightning || alertPrecipStart || alertNws
   readonly property bool canPoll: anyAlertEnabled && token !== "" && stationId !== ""
@@ -146,6 +148,10 @@ Item {
     if (alertNws) { seenNwsIds = ({}); nwsBaselined = false }
     else { nwsActive = false; nwsAlerts = [] }
   }
+  // Re-baseline when the filter widens/narrows, so the change does not surface
+  // as a fresh alarm for something already active.
+  onNwsWarningsOnlyChanged: if (alertNws) { seenNwsIds = ({}); nwsBaselined = false }
+  onNwsMinSeverityChanged: if (alertNws) { seenNwsIds = ({}); nwsBaselined = false }
 
   // True for a window after the most recent strike, so the bar pill can show a
   // marker. Cleared when lightningClear fires.
@@ -273,7 +279,7 @@ Item {
     var current = []
     for (var i = 0; i < features.length; i++) {
       var p = features[i] ? features[i].properties : null
-      if (!Model.nwsQualifies(p, root.nwsMinSeverity)) continue
+      if (!Model.nwsQualifies(p, root.nwsMinSeverity, root.nwsWarningsOnly)) continue
       current.push(p)
       var id = String(p.id || "")
       if (id === "") continue

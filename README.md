@@ -137,7 +137,7 @@ happens, plays a sound (and, by default, raises a desktop notification):
 |-------|------------|
 | Lightning strike | `lightning_strike_last_epoch` advances to a strike newer than the service started; optionally only within a distance you set |
 | Rain / snow start | the current conditions cross from dry to wet (a `clear` → `rainy` / `snow` / `thunderstorm` edge) |
-| Storm warning (NWS) | a new US National Weather Service alert for the station's location is issued at severity Severe or Extreme (severe-thunderstorm / tornado / flood warnings, and the serious watches) |
+| Storm warning (NWS) | a new US National Weather Service **warning** for the station's location is issued at severity Severe or Extreme (severe-thunderstorm / tornado / flood warnings). Watches and advisories are excluded by default — turn off "warnings only" to include them. |
 
 The first two are your station's own sensors — hyper-local, real-time. The NWS
 alert is a separate area feed (`api.weather.gov`, US only, no key), keyed off
@@ -186,9 +186,13 @@ in-panel file browser — tap a folder to open it, an audio file to pick it. The
 `alertLightningSound` / `alertPrecipSound` / `alertSnowSound` / `alertNwsSound`
 keys, which you can also set directly in `shell.json`.
 
-`alertNwsMinSeverity` (shell.json only, default `Severe`) widens or narrows what
-counts: set `Moderate` to also alert on advisories and routine watches,
-`Extreme` for life-threatening only.
+Two knobs control which NWS alerts count:
+
+- **warnings only** (`alertNwsWarningsOnly`, default on) — a switch in the
+  ALERTS section. On: only "… Warning" events. Off: also Watches, Advisories,
+  and Statements.
+- `alertNwsMinSeverity` (shell.json only, default `Severe`) — the severity
+  floor. `Moderate` includes more; `Extreme` is life-threatening only.
 
 The service reads the same token, station, and units as the widget, so it needs
 the widget placed on the bar; there is nothing else to configure.

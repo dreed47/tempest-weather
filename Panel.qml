@@ -293,6 +293,7 @@ Panel {
   property string draftPrecipSound: ""
   property string draftSnowSound: ""
   property string draftAlertNws: "off"
+  property string draftAlertNwsWarn: "on"
   property string draftNwsSound: ""
   property var settingsSaveQueue: []
 
@@ -414,6 +415,7 @@ Panel {
     draftPrecipSound = String(setting("alertPrecipSound", "") || "")
     draftSnowSound = String(setting("alertSnowSound", "") || "")
     draftAlertNws = onOffSetting("alertNws", "off")
+    draftAlertNwsWarn = onOffSetting("alertNwsWarningsOnly", "on")
     draftNwsSound = String(setting("alertNwsSound", "") || "")
     savingSettings = false
     editingSettings = true
@@ -453,6 +455,7 @@ Panel {
       ["alertPrecipSound", draftPrecipSound.replace(/^\s+|\s+$/g, "")],
       ["alertSnowSound", draftSnowSound.replace(/^\s+|\s+$/g, "")],
       ["alertNws", draftAlertNws === "on" ? "on" : "off"],
+      ["alertNwsWarningsOnly", draftAlertNwsWarn === "on" ? "on" : "off"],
       ["alertNwsSound", draftNwsSound.replace(/^\s+|\s+$/g, "")]
     ]
     runNextSettingsSave()
@@ -1265,6 +1268,53 @@ Panel {
                         enabled: !root.savingSettings
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.draftAlertNws = modelData
+                      }
+                    }
+                  }
+                }
+              }
+
+              Row {
+                width: parent.width
+                spacing: Style.space(12)
+                opacity: root.draftAlertNws === "on" ? 1 : 0.4
+                Text {
+                  width: Style.space(200)
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: "  · warnings only"
+                  color: root.bar ? Qt.darker(root.bar.foreground, 1.4) : "gray"
+                  font.family: root.bar ? root.bar.fontFamily : "monospace"
+                  font.pixelSize: Style.font.caption
+                  font.letterSpacing: 1
+                }
+                Row {
+                  spacing: Style.space(8)
+                  Repeater {
+                    model: ["off", "on"]
+                    Rectangle {
+                      required property var modelData
+                      readonly property bool active: root.draftAlertNwsWarn === modelData
+                      height: Style.space(28)
+                      width: nwoLabel.implicitWidth + Style.space(20)
+                      radius: Style.cornerRadius
+                      color: active ? (root.bar ? root.bar.foreground : "#cacccc") : "transparent"
+                      border.width: active ? 0 : 1
+                      border.color: root.bar ? root.bar.foreground : "#cacccc"
+                      Text {
+                        id: nwoLabel
+                        anchors.centerIn: parent
+                        text: modelData
+                        color: parent.active
+                          ? (root.bar ? root.bar.background : "#101315")
+                          : (root.bar ? root.bar.foreground : "#cacccc")
+                        font.family: root.bar ? root.bar.fontFamily : "monospace"
+                        font.pixelSize: Style.font.bodySmall
+                      }
+                      MouseArea {
+                        anchors.fill: parent
+                        enabled: !root.savingSettings && root.draftAlertNws === "on"
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.draftAlertNwsWarn = modelData
                       }
                     }
                   }

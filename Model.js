@@ -251,12 +251,15 @@ var NWS_SEVERITY_ORDER = { "unknown": 0, "minor": 1, "moderate": 2, "severe": 3,
 
 // True when an NWS alert is real, current, and at least as severe as
 // minSeverity (default "Severe" — warnings and the serious watches, not
-// routine advisories). Cancels/acks and test messages are dropped.
-function nwsQualifies(props, minSeverity) {
+// routine advisories). Cancels/acks and test messages are dropped. When
+// warningsOnly is set, Watches / Advisories / Statements are dropped too —
+// only "... Warning" events pass.
+function nwsQualifies(props, minSeverity, warningsOnly) {
   if (!props) return false
   if (String(props.status || "") !== "Actual") return false
   var mt = String(props.messageType || "")
   if (mt !== "Alert" && mt !== "Update") return false
+  if (warningsOnly && !/warning\s*$/i.test(String(props.event || ""))) return false
   var need = NWS_SEVERITY_ORDER[String(minSeverity || "severe").toLowerCase()]
   if (need === undefined) need = 3
   var have = NWS_SEVERITY_ORDER[String(props.severity || "").toLowerCase()]

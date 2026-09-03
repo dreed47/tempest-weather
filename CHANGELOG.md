@@ -25,8 +25,10 @@
   (`api.weather.gov/alerts/active`, no key). Off by default; toggled with
   `alertNws`, its own bundled sound (`sounds/nws.ogg`, overridable via
   `alertNwsSound` or the form's SOUNDS block). Fires on a newly issued alert at
-  severity Severe/Extreme (`alertNwsMinSeverity` widens/narrows this); alerts
-  already active when the service starts are adopted silently. Station
+  severity Severe/Extreme (`alertNwsMinSeverity` widens/narrows this) and, by
+  default, only actual Warnings — a "warnings only" switch
+  (`alertNwsWarningsOnly`, default on) drops Watches / Advisories / Statements.
+  Alerts already active when the service starts are adopted silently. Station
   coordinates come from the forecast response — no extra config. The pill shows
   a warning triangle while an NWS alert is active, and the popup shows a banner
   with the event, the NWS headline, an inline **full text** expander, and a
