@@ -4,7 +4,7 @@
   "name": "Tempest Weather",
   "version": "0.4.1",
   "author": "David Reed",
-  "description": "Bar pill and detail popup for a WeatherFlow Tempest weather station you own, reading its live data via your Tempest account's Better Forecast API.",
+  "description": "Bar pill and popup for a WeatherFlow Tempest weather station you own: live conditions and a forecast read from your Tempest account's Better Forecast API (not a modelled city forecast). It can also raise audible alerts for lightning strikes and the start of rain/snow detected by the station's own sensors, and for US National Weather Service warnings for the station's latitude/longitude, with an in-popup NWS radar loop.",
   "kinds": ["bar-widget", "service"],
   "keepLoaded": true,
   "entryPoints": {
@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "Tempest Weather",
-    "description": "Local Tempest station conditions with a forecast popup",
+    "description": "Your own Tempest station's conditions and forecast, plus optional lightning / rain-snow / NWS storm alerts for its location",
     "category": "Info",
     "allowMultiple": false,
     "defaultSection": "right",

@@ -20,8 +20,15 @@ fresh the reading is, so it's never mistaken for a city forecast.
 
 ![Tempest Weather popup](preview.png)
 
-Credentials, units, and refresh interval are set from a form in the popup — no
-config file editing required:
+It can also raise **alerts** — audible + desktop notification — for lightning
+strikes and rain/snow onset from the station's own sensors, and for US
+National Weather Service warnings for the station's location, with the NWS
+radar loop shown right in the popup:
+
+![Popup with an active alert and the radar loop](alert.png)
+
+Everything is configured from a form in the popup — no config file editing
+required:
 
 ![Settings form](settings.png)
 
@@ -139,12 +146,18 @@ happens, plays a sound (and, by default, raises a desktop notification):
 | Rain / snow start | the current conditions cross from dry to wet (a `clear` → `rainy` / `snow` / `thunderstorm` edge) |
 | NWS alert (US) | a new US National Weather Service alert for the station's location is issued at or above the level you pick — **Warnings** (default), **Watches** (adds these), or **Advisories** (adds these too). Warnings = happening/imminent; Watches = conditions favorable; Advisories = nuisance. |
 
-The first two are your station's own sensors — hyper-local, real-time. The NWS
-alert is a separate area feed (`api.weather.gov`, US only, no key), keyed off
-the station's coordinates, which the plugin already gets from the forecast
-response. Watches/warnings active *before* the service starts are adopted
-silently, so a restart mid-warning is not a fresh alarm; a newly issued one
-sounds.
+The first two are your station's own sensors — hyper-local, real-time, and
+work anywhere. The NWS alert is a separate area feed (`api.weather.gov`, no
+key), keyed off the station's coordinates, which the plugin already gets from
+the forecast response. Watches/warnings active *before* the service starts are
+adopted silently, so a restart mid-warning is not a fresh alarm; a newly
+issued one sounds.
+
+> **NWS alerts and the radar are US-only** — `api.weather.gov` covers the
+> United States and its territories. Outside the US the alert and radar
+> sections simply don't appear; lightning and rain/snow alerts still work.
+> A pluggable non-US alert/radar source (Environment Canada, MeteoAlarm,
+> RainViewer, …) would be a welcome PR.
 
 > **Alerts (or the forecast) for the wrong area?** Both use the latitude and
 > longitude registered for your station in your Tempest account — not your
@@ -176,8 +189,9 @@ alerts are on and a radar site resolves for your location. Expand it to see the
 NWS RIDGE base-reflectivity loop for your nearest WSR-88D — map, city labels,
 and active warning polygons — animated, refreshed every few minutes. It is
 only downloaded while the section is open. Tap the image for the full
-interactive radar in a browser. US only. Override the site with
-`alertRadarSite` (e.g. `KCLE`) if the auto-detected one has a gap over you.
+interactive radar in a browser. US only (see the note above). Override the
+site with `alertRadarSite` (e.g. `KCLE`) if the auto-detected one has a gap
+over you.
 
 ### Sounds
 
