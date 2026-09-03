@@ -8,8 +8,9 @@
   (`pw-play`) and, by default, raises a desktop notification.
 - All alerts are off by default. New settings: `alertLightning`,
   `alertLightningMaxDistance`, `alertPrecipStart`, `alertNotify`,
-  `alertPollSeconds`, `alertLightningSound` / `alertPrecipSound` /
-  `alertSnowSound`. The settings form gains an ALERTS section: on/off switches,
+  `alertNotifyTimeout` (auto-dismiss the notification after N seconds; 0 =
+  daemon default; critical alerts stay pinned regardless), `alertPollSeconds`,
+  `alertLightningSound` / `alertPrecipSound` / `alertSnowSound`. The settings form gains an ALERTS section: on/off switches,
   max distance, poll interval, and a SOUNDS block with, per alert type, a path
   field, a **test** button, and a folder button that opens an in-panel file
   browser (folders + `.wav`/`.ogg`/`.oga`/`.flac`/`.opus` files, tap to

@@ -77,6 +77,10 @@ Item {
   readonly property real alertLightningMaxDistance: parseFloat(String(cval("alertLightningMaxDistance", "0"))) || 0
   readonly property bool alertPrecipStart: String(cval("alertPrecipStart", "off")).toLowerCase() === "on"
   readonly property bool alertNotify: String(cval("alertNotify", "on")).toLowerCase() === "on"
+  // Seconds after which the notification self-dismisses; 0 = daemon default.
+  // Note: mako/swaync keep "critical" notifications sticky regardless, so this
+  // only reliably affects the lower-urgency (rain/watch/advisory) alerts.
+  readonly property int notifyTimeoutSec: Math.max(0, parseInt(String(cval("alertNotifyTimeout", "0")), 10) || 0)
   readonly property int pollSeconds: Math.max(60, parseInt(String(cval("alertPollSeconds", "90")), 10) || 90)
   readonly property string lightningSound: String(cval("alertLightningSound", "")).replace(/^\s+|\s+$/g, "")
   readonly property string precipSound: String(cval("alertPrecipSound", "")).replace(/^\s+|\s+$/g, "")
@@ -335,6 +339,7 @@ Item {
     if (!root.alertNotify) return
     var cmd = ["omarchy-notification-send", "-u", String(urgency || "normal")]
     if (glyph && glyph !== "") { cmd.push("-g"); cmd.push(String(glyph)) }
+    if (root.notifyTimeoutSec > 0) { cmd.push("-t"); cmd.push(String(root.notifyTimeoutSec * 1000)) }
     cmd.push(String(headline))
     if (body && body !== "") cmd.push(String(body))
     notifyQueue.push(cmd)

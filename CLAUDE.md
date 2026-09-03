@@ -80,7 +80,9 @@ refetch kicks off. The ALERTS section rows write `alertLightning`,
   show a bolt (`0xf0e7`) on the pill while `alertService.lightningActive`.
 - Poll → `Model.detectLightning` / `Model.detectPrecipStart` (pure, in
   `Model.js`) → `fireLightning` / `firePrecip` → `pw-play <sound>` +
-  `omarchy-notification-send`. De-dup: `lastLightningEpoch` (only a strike
+  `omarchy-notification-send` (with `-t <alertNotifyTimeout*1000>` when the
+  setting is >0; lightning/NWS-severe fire `-u critical` which mako/swaync
+  keep pinned regardless — verified). De-dup: `lastLightningEpoch` (only a strike
   newer than both it and `startedAtEpoch` fires) and `lastPrecipDay` (one
   precip-start alert per local day). State is in-memory; the `startedAtEpoch`
   gate is what stops a restart mid-storm replaying old strikes.

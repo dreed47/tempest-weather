@@ -289,6 +289,7 @@ Panel {
   property string draftAlertPrecip: "off"
   property string draftAlertNotify: "on"
   property string draftAlertPoll: "90"
+  property string draftNotifyTimeout: "0"
   property string draftLightningSound: ""
   property string draftPrecipSound: ""
   property string draftSnowSound: ""
@@ -411,6 +412,7 @@ Panel {
     draftAlertPrecip = onOffSetting("alertPrecipStart", "off")
     draftAlertNotify = onOffSetting("alertNotify", "on")
     draftAlertPoll = String(setting("alertPollSeconds", "90") || "90")
+    draftNotifyTimeout = String(setting("alertNotifyTimeout", "0") || "0")
     draftLightningSound = String(setting("alertLightningSound", "") || "")
     draftPrecipSound = String(setting("alertPrecipSound", "") || "")
     draftSnowSound = String(setting("alertSnowSound", "") || "")
@@ -444,6 +446,8 @@ Panel {
     if (isNaN(maxDist) || maxDist < 0) maxDist = 0
     var poll = parseInt(draftAlertPoll, 10)
     if (isNaN(poll) || poll < 60) poll = 60
+    var notifyTimeout = parseInt(draftNotifyTimeout, 10)
+    if (isNaN(notifyTimeout) || notifyTimeout < 0) notifyTimeout = 0
     settingsSaveQueue = [
       ["stationId", draftStation.replace(/^\s+|\s+$/g, "")],
       ["token", draftToken.replace(/^\s+|\s+$/g, "")],
@@ -453,6 +457,7 @@ Panel {
       ["alertLightningMaxDistance", String(maxDist)],
       ["alertPrecipStart", draftAlertPrecip === "on" ? "on" : "off"],
       ["alertNotify", draftAlertNotify === "on" ? "on" : "off"],
+      ["alertNotifyTimeout", String(notifyTimeout)],
       ["alertPollSeconds", String(poll)],
       ["alertLightningSound", draftLightningSound.replace(/^\s+|\s+$/g, "")],
       ["alertPrecipSound", draftPrecipSound.replace(/^\s+|\s+$/g, "")],
@@ -1434,11 +1439,39 @@ Panel {
                 }
               }
 
+              Column {
+                spacing: Style.space(4)
+                opacity: root.draftAlertNotify === "on" ? 1 : 0.4
+                Text {
+                  text: "NOTIFICATION AUTO-DISMISS  (SEC, 0 = OFF)"
+                  color: root.bar ? Qt.darker(root.bar.foreground, 1.5) : "gray"
+                  font.family: root.bar ? root.bar.fontFamily : "monospace"
+                  font.pixelSize: Style.font.caption
+                  font.letterSpacing: 1
+                }
+                TextField {
+                  width: Style.space(80)
+                  enabled: !root.savingSettings && root.draftAlertNotify === "on"
+                  text: root.draftNotifyTimeout
+                  foreground: root.bar ? root.bar.foreground : "white"
+                  font.family: root.bar ? root.bar.fontFamily : "monospace"
+                  inputMethodHints: Qt.ImhDigitsOnly
+                  validator: IntValidator { bottom: 0; top: 86400 }
+                  onTextChanged: root.draftNotifyTimeout = text
+                  Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Escape) { root.cancelEditingSettings(); event.accepted = true }
+                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) { root.saveSettings(); event.accepted = true }
+                  }
+                }
+              }
+
               Text {
                 width: parent.width
                 wrapMode: Text.WordWrap
                 text: "One background poll drives all three — lightning, rain/snow, and NWS "
-                  + "alerts (min 60 s). Each can lag by up to one interval."
+                  + "alerts (min 60 s). Each can lag by up to one interval. Auto-dismiss "
+                  + "clears the notification after N seconds; critical alerts (severe "
+                  + "storms, tornado) may stay pinned regardless of it."
                 color: root.bar ? Qt.darker(root.bar.foreground, 1.6) : "gray"
                 font.family: root.bar ? root.bar.fontFamily : "monospace"
                 font.pixelSize: Style.font.caption
