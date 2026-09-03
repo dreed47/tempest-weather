@@ -146,6 +146,13 @@ response. Watches/warnings active *before* the service starts are adopted
 silently, so a restart mid-warning is not a fresh alarm; a newly issued one
 sounds.
 
+> **Alerts (or the forecast) for the wrong area?** Both use the latitude and
+> longitude registered for your station in your Tempest account — not your
+> device's location. If they seem off, open the Tempest app or
+> [tempestwx.com](https://tempestwx.com), go to your station's settings, and
+> check/correct its location. That fixes the forecast, the NWS alerts, and the
+> timezone together.
+
 All alerts are **off by default**. Turn them on in the settings form (the gear
 in the popup) — the ALERTS section has on/off switches for each, a lightning
 max-distance, a notification switch, the poll interval, and a SOUNDS block with
