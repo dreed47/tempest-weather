@@ -9,7 +9,7 @@
 - All alerts are off by default. New settings: `alertLightning`,
   `alertLightningMaxDistance`, `alertPrecipStart`, `alertNotify`,
   `alertNotifyTimeout` (auto-dismiss the notification after N seconds; 0 =
-  daemon default; critical alerts stay pinned regardless), `alertPollSeconds`,
+  daemon default), `alertPollSeconds`,
   `alertLightningSound` / `alertPrecipSound` / `alertSnowSound`. The settings form gains an ALERTS section: on/off switches,
   max distance, poll interval, and a SOUNDS block with, per alert type, a path
   field, a **test** button, and a folder button that opens an in-panel file
@@ -43,6 +43,9 @@
   `nwsSeverityRank` / `nwsSummary`.
 - `Model.js` gains pure helpers `iconWet`, `precipKind`, `detectLightning`,
   `detectPrecipStart`.
+- Fix: lightning and severe NWS alerts sent `critical`-urgency notifications,
+  which mako/swaync keep pinned regardless of `alertNotifyTimeout`. All alerts
+  now send `normal` urgency so auto-dismiss always works.
 - README gains a "What it runs and connects to" section — every host contacted
   (`swd.weatherflow.com`, `api.weather.gov`, `radar.weather.gov`), every
   process spawned, and every file touched.

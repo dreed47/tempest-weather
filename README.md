@@ -170,7 +170,7 @@ All alerts are **off by default**. Turn them on in the settings form (the gear
 in the popup) — the ALERTS section has on/off switches for each, a lightning
 max-distance, the NWS level, the poll interval, a notification switch with an
 optional auto-dismiss (`alertNotifyTimeout` seconds; 0 = your notification
-daemon's default — note mako/swaync keep *critical* alerts pinned regardless),
+daemon's default — all alerts use normal urgency, so this is always honored),
 and a SOUNDS block with a file-path field and a **test** button per alert type.
 Because alerts come from a poll, they lag by up to one interval (default 90 s,
 minimum 60 s); they are a heads-up, not a life-safety warning.

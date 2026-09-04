@@ -78,8 +78,9 @@ Item {
   readonly property bool alertPrecipStart: String(cval("alertPrecipStart", "off")).toLowerCase() === "on"
   readonly property bool alertNotify: String(cval("alertNotify", "on")).toLowerCase() === "on"
   // Seconds after which the notification self-dismisses; 0 = daemon default.
-  // Note: mako/swaync keep "critical" notifications sticky regardless, so this
-  // only reliably affects the lower-urgency (rain/watch/advisory) alerts.
+  // All alerts use "normal" urgency (never "critical") so this timeout is
+  // actually honored — mako/swaync keep "critical" notifications sticky
+  // regardless of -t.
   readonly property int notifyTimeoutSec: Math.max(0, parseInt(String(cval("alertNotifyTimeout", "0")), 10) || 0)
   readonly property int pollSeconds: Math.max(60, parseInt(String(cval("alertPollSeconds", "90")), 10) || 90)
   readonly property string lightningSound: String(cval("alertLightningSound", "")).replace(/^\s+|\s+$/g, "")
@@ -342,13 +343,11 @@ Item {
   }
 
   function fireNws(p) {
-    var sev = String(p.severity || "").toLowerCase()
-    var crit = (sev === "extreme" || sev === "severe")
     playSound(root.nwsSound !== "" ? root.nwsSound : root.defaultNwsSound)
     notify(
       Model.nwsEventLabel(p),
       String(p.headline || p.areaDesc || "Issued by the US National Weather Service"),
-      crit ? "critical" : "normal",
+      "normal",
       String.fromCharCode(0xf071))   // nf triangle-exclamation
   }
 
@@ -395,7 +394,7 @@ Item {
       "Lightning" + (dstr !== "" ? " " + dstr : ""),
       "Strike detected by your Tempest station"
         + (L.count > 1 ? " (" + L.count + " in the last hour)" : ""),
-      "critical",
+      "normal",
       String.fromCharCode(0xe31d))   // wi-thunderstorm
   }
 
