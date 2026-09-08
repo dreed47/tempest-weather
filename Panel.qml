@@ -207,7 +207,13 @@ Panel {
   }
 
   function setCenterHoverRevealSuppressed(value) {
-    if (root.bar && "centerHoverRevealSuppressed" in root.bar)
+    // Omarchy 4.0.3 made bar.centerHoverRevealSuppressed read-only and added a
+    // setter method; assigning the property directly now throws and aborts the
+    // open/close path. Prefer the method, keep the assignment as a fallback for
+    // older shells.
+    if (root.bar && typeof root.bar.setCenterHoverRevealSuppressed === "function")
+      root.bar.setCenterHoverRevealSuppressed(value)
+    else if (root.bar && "centerHoverRevealSuppressed" in root.bar)
       root.bar.centerHoverRevealSuppressed = value
   }
 
