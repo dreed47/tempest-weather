@@ -34,18 +34,23 @@ Item {
   // value pushed in from the widget, and the two races made canPoll flicker.
 
   readonly property var cfg: {
+    // Omarchy <=4.0.2 gave the injected shell a full `shellConfig`
+    // ({ bar: { layout }, plugins }). 4.0.3's scoped plugin shell drops that
+    // and exposes only `barConfig` (the bar object itself, with `.layout`).
+    // Try both so the service keeps reading its own token/station/alert keys.
     var sc = shell ? shell.shellConfig : null
-    if (!sc) return null
+    var bar = (sc && sc.bar) ? sc.bar
+      : (shell && shell.barConfig ? shell.barConfig : null)
     try {
-      if (sc.bar && sc.bar.layout) {
+      if (bar && bar.layout) {
         var secs = ["left", "center", "right"]
         for (var s = 0; s < secs.length; s++) {
-          var arr = sc.bar.layout[secs[s]] || []
+          var arr = bar.layout[secs[s]] || []
           for (var i = 0; i < arr.length; i++)
             if (arr[i] && String(arr[i].id) === root.pluginId) return arr[i]
         }
       }
-      var plugs = sc.plugins || []
+      var plugs = (sc && sc.plugins) ? sc.plugins : []
       for (var j = 0; j < plugs.length; j++)
         if (plugs[j] && String(plugs[j].id) === root.pluginId) return plugs[j]
     } catch (e) {}

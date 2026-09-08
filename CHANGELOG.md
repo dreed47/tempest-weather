@@ -2,6 +2,16 @@
 
 ## Unreleased — alerts (alerts-sandbox branch)
 
+- Omarchy 4.0.3 compatibility. Two regressions from the 4.0.3 plugin API:
+  - `bar.centerHoverRevealSuppressed` became read-only (with a new
+    `bar.setCenterHoverRevealSuppressed()` method). Assigning it directly now
+    threw and aborted the popup's open/close path, so the popup would not
+    dismiss. Prefer the method, keep the assignment as an older-shell fallback.
+  - The scoped plugin shell handed to a third-party service no longer exposes
+    `shell.shellConfig`, only `shell.barConfig`. `AlertService.qml` read its
+    token / station / alert keys from `shell.shellConfig`, so under 4.0.3 it
+    saw no config, never polled, and every alert plus the popup radar section
+    silently stopped. Config lookup now falls back to `shell.barConfig.layout`.
 - New headless alert service (`AlertService.qml`, manifest kind `service`). It
   runs whenever the plugin is enabled, polls the station on its own short
   interval, and on a lightning strike or the start of rain/snow plays a sound
