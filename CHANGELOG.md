@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.2
+
+- Omarchy 4.0.3 compatibility: the popup would not dismiss. 4.0.3 made
+  `bar.centerHoverRevealSuppressed` read-only and added a
+  `bar.setCenterHoverRevealSuppressed()` method; assigning the property
+  directly now throws, and the exception aborted the popup's open/close path.
+  Prefer the method, fall back to the direct assignment for older shells.
+
 ## 0.4.1
 
 - Fixed the bar pill overlapping the widget next to it in the bar's center
