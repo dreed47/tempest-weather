@@ -162,6 +162,148 @@ function relativeAge(epochSeconds, nowMs) {
   return Math.round(mins / 60) + "h ago"
 }
 
+// ---- Alert detection -----------------------------------------------------
+//
+// The alert service (Service.qml) polls better_forecast on its own short
+// interval and calls these with the freshly parsed current_conditions. They
+// are pure decision functions: they say whether to fire, never fire anything,
+// and hold no state. The service owns the de-dup bookkeeping and passes the
+// relevant pieces back in through `opts`.
+
+// True when a current-conditions `icon` denotes precipitation falling now.
+// "possibly-*" is a forecast hedge, not an observation, so it does not count.
+function iconWet(icon) {
+  var k = String(icon || "").toLowerCase().replace(/^\s+|\s+$/g, "")
+  if (k.indexOf("possibly-") === 0) return false
+  return k.indexOf("rain") !== -1 || k.indexOf("snow") !== -1
+    || k.indexOf("sleet") !== -1 || k.indexOf("thunderstorm") !== -1
+    || k.indexOf("hail") !== -1 || k.indexOf("drizzle") !== -1
+}
+
+// Classify the precipitation type for the "started" alert. Prefers the icon,
+// falls back to the API's own rain-vs-not flag.
+function precipKind(cur) {
+  if (!cur) return "rain"
+  var k = String(cur.icon || "").toLowerCase()
+  if (k.indexOf("snow") !== -1) return "snow"
+  if (k.indexOf("sleet") !== -1 || k.indexOf("hail") !== -1) return "sleet"
+  if (cur.is_precip_local_day_rain_check === false) return "snow"
+  return "rain"
+}
+
+// Decide whether a lightning strike warrants an alert.
+//   opts.enabled       alerts turned on
+//   opts.maxDistance    only alert at or nearer than this (0 = any)
+//   opts.sinceEpoch     service start; strikes older than this are history
+//   opts.lastEpoch      epoch of the last strike already alerted on
+// Returns { fire, epoch, distance, count }. `epoch` is always the strike
+// timestamp (so the caller can advance lastEpoch even when it does not fire).
+function detectLightning(cur, opts) {
+  opts = opts || {}
+  var out = { fire: false, epoch: 0, distance: null, count: 0 }
+  if (!cur) return out
+  var epoch = parseInt(String(cur.lightning_strike_last_epoch || ""), 10)
+  if (isNaN(epoch) || epoch <= 0) return out
+  out.epoch = epoch
+  var d = cur.lightning_strike_last_distance
+  out.distance = (d === undefined || d === null || d === "") ? null : parseFloat(String(d))
+  out.count = parseInt(String(cur.lightning_strike_count_last_1hr || "0"), 10) || 0
+  if (!opts.enabled) return out
+  if (epoch <= (parseInt(String(opts.lastEpoch || 0), 10) || 0)) return out
+  if (opts.sinceEpoch && epoch < (parseInt(String(opts.sinceEpoch), 10) || 0)) return out
+  var max = parseFloat(String(opts.maxDistance || 0)) || 0
+  if (max > 0 && out.distance !== null && !isNaN(out.distance) && out.distance > max) return out
+  out.fire = true
+  return out
+}
+
+// Decide whether precipitation has just started (a dry -> wet edge).
+//   prev, cur          consecutive current_conditions samples (prev may be null)
+//   opts.enabled       alerts turned on
+//   opts.currentDay    local "yyyy-MM-dd" of `cur` (caller computes it)
+//   opts.lastFiredDay  the day a precip-start alert last fired
+// Returns { fire, kind }.
+function detectPrecipStart(prev, cur, opts) {
+  opts = opts || {}
+  var out = { fire: false, kind: "rain" }
+  if (!cur) return out
+  out.kind = precipKind(cur)
+  if (!opts.enabled || !prev) return out   // no baseline yet: never fire
+  var wetPrev = iconWet(prev.icon)
+  var wetNow = iconWet(cur.icon)
+  var minsPrev = parseInt(String(prev.precip_minutes_local_day || "0"), 10) || 0
+  var minsNow = parseInt(String(cur.precip_minutes_local_day || "0"), 10) || 0
+  var edge = (!wetPrev && wetNow) || (minsPrev === 0 && minsNow > 0 && wetNow)
+  if (!edge) return out
+  if (opts.currentDay && opts.lastFiredDay && opts.currentDay === opts.lastFiredDay) return out
+  out.fire = true
+  return out
+}
+
+// ---- NWS alerts ----------------------------------------------------------
+//
+// api.weather.gov/alerts/active?point=lat,lon returns a GeoJSON
+// FeatureCollection; each feature's `properties` has event / severity /
+// urgency / messageType / status / onset / expires / areaDesc / headline.
+// The alert service passes one `properties` object in at a time.
+
+var NWS_SEVERITY_ORDER = { "unknown": 0, "minor": 1, "moderate": 2, "severe": 3, "extreme": 4 }
+
+// The alert tiers NWS issues, most urgent first. "Statement" (follow-ups) and
+// anything unrecognised are folded into the "warning" tier so they are never
+// silently dropped.
+var NWS_TIER_RANK = { "warning": 3, "watch": 2, "advisory": 1 }
+var NWS_LEVEL_THRESHOLD = { "warnings": 3, "watches": 2, "advisories": 1 }
+
+// Classify an alert by its event name: "warning" | "watch" | "advisory".
+function nwsTier(props) {
+  var e = String(props && props.event ? props.event : "").toLowerCase()
+  if (/\bwatch\s*$/.test(e)) return "watch"
+  if (/\badvisory\s*$/.test(e)) return "advisory"
+  return "warning"   // Warning, Statement, Emergency, Alert, anything else
+}
+
+// True when an NWS alert is real, current, and at or above the chosen level.
+// level is cumulative: "warnings" = Warnings only; "watches" = + Watches;
+// "advisories" = + Advisories (everything). Cancels/acks and test messages
+// are always dropped.
+function nwsQualifies(props, level) {
+  if (!props) return false
+  if (String(props.status || "") !== "Actual") return false
+  var mt = String(props.messageType || "")
+  if (mt !== "Alert" && mt !== "Update") return false
+  var threshold = NWS_LEVEL_THRESHOLD[String(level || "warnings").toLowerCase()]
+  if (threshold === undefined) threshold = 3
+  return NWS_TIER_RANK[nwsTier(props)] >= threshold
+}
+
+// Short label for the alert, e.g. "Tornado Warning".
+function nwsEventLabel(props) {
+  return props && props.event ? String(props.event) : "Weather alert"
+}
+
+// Numeric severity for sorting a list of alerts (higher = worse).
+function nwsSeverityRank(props) {
+  var s = props ? String(props.severity || "").toLowerCase() : ""
+  return NWS_SEVERITY_ORDER[s] !== undefined ? NWS_SEVERITY_ORDER[s] : 0
+}
+
+// One-line summary and the full body text for the popup.
+//   headline: the NWS one-liner (event + times + office)
+//   body:     the full description, plus the call-to-action if the alert
+//             carries one
+function nwsSummary(props) {
+  if (!props) return { event: "Weather alert", headline: "", body: "" }
+  var body = String(props.description || "").replace(/^\s+|\s+$/g, "")
+  var instr = String(props.instruction || "").replace(/^\s+|\s+$/g, "")
+  if (instr !== "") body += (body !== "" ? "\n\n" : "") + "PRECAUTIONARY/PREPAREDNESS ACTIONS:\n" + instr
+  return {
+    event: nwsEventLabel(props),
+    headline: String(props.headline || props.areaDesc || "").replace(/^\s+|\s+$/g, ""),
+    body: body
+  }
+}
+
 // One-line-per-field summary for the right-click desktop notification.
 function summaryLines(report, units) {
   var c = currentConditions(report)
@@ -202,6 +344,15 @@ if (typeof module !== "undefined") {
     forecastDays: forecastDays,
     pressureTrendLabel: pressureTrendLabel,
     relativeAge: relativeAge,
+    iconWet: iconWet,
+    precipKind: precipKind,
+    detectLightning: detectLightning,
+    detectPrecipStart: detectPrecipStart,
+    nwsTier: nwsTier,
+    nwsQualifies: nwsQualifies,
+    nwsEventLabel: nwsEventLabel,
+    nwsSeverityRank: nwsSeverityRank,
+    nwsSummary: nwsSummary,
     summaryLines: summaryLines
   }
 }

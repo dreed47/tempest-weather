@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.5.0
+
+- The alert service (below) and its `service` manifest kind are now part of
+  `main` — previously developed and tested on the `alerts-sandbox` branch.
+- The scoped plugin shell handed to a third-party service no longer exposes
+  `shell.shellConfig` under Omarchy 4.0.3, only `shell.barConfig`.
+  `AlertService.qml` read its token / station / alert keys from
+  `shell.shellConfig`, so under 4.0.3 it saw no config, never polled, and
+  every alert plus the popup radar section silently stopped. Config lookup
+  now falls back to `shell.barConfig.layout`.
+- New headless alert service (`AlertService.qml`, manifest kind `service`). It
+  runs whenever the plugin is enabled, polls the station on its own short
+  interval, and on a lightning strike or the start of rain/snow plays a sound
+  (`pw-play`) and, by default, raises a desktop notification.
+- All alerts are off by default. New settings: `alertLightning`,
+  `alertLightningMaxDistance`, `alertPrecipStart`, `alertNotify`,
+  `alertNotifyTimeout` (auto-dismiss the notification after N seconds; 0 =
+  daemon default), `alertPollSeconds`,
+  `alertLightningSound` / `alertPrecipSound` / `alertSnowSound`. The settings form gains an ALERTS section: on/off switches,
+  max distance, poll interval, and a SOUNDS block with, per alert type, a path
+  field, a **test** button, and a folder button that opens an in-panel file
+  browser (folders + `.wav`/`.ogg`/`.oga`/`.flac`/`.opus` files, tap to
+  descend or pick). A native file dialog can't be used — it opens behind the
+  overlay-layer popup — so the browser is rendered inside the card.
+- Alert sounds ship with the plugin (`sounds/*.ogg`): the matching freedesktop
+  sound with ~1 s of leading silence, so the alert is still audible on an
+  HDMI / AV-receiver output that idle-suspends and takes a moment to wake.
+  Leaving a sound field blank uses the bundled default.
+- The bar pill shows a bolt marker for 20 minutes while a lightning alert is
+  active.
+- Third alert source: US National Weather Service area alerts
+  (`api.weather.gov/alerts/active`, no key). Off by default; toggled with
+  `alertNws`, its own bundled sound (`sounds/nws.ogg`, overridable via
+  `alertNwsSound` or the form's SOUNDS block). A cumulative `alertNwsLevel`
+  (`warnings` (default) → `watches` → `advisories`) sets how much fires; each
+  step includes the ones above it, and Statements / unrecognised events count
+  as Warnings. Alerts already active when the service starts are adopted
+  silently. Station
+  coordinates come from the forecast response — no extra config. The pill shows
+  a warning triangle while an NWS alert is active, and the popup shows a banner
+  with the event, the NWS headline, an inline **full text** expander, and a
+  link to the weather.gov point page (radar + official text). The popup also
+  has a collapsible **radar** section: the NWS RIDGE base-reflectivity loop for
+  the nearest WSR-88D (map + active warning polygons), site from
+  `api.weather.gov/points` or the `alertRadarSite` override, animated via
+  `AnimatedImage` and only fetched while expanded + the popup open (re-pulled
+  every ~2.5 min); tap for the full interactive radar. `AlertService`
+  exposes `nwsAlerts`; `Model.js` gains `nwsQualifies` / `nwsEventLabel` /
+  `nwsSeverityRank` / `nwsSummary`.
+- `Model.js` gains pure helpers `iconWet`, `precipKind`, `detectLightning`,
+  `detectPrecipStart`.
+- Fix: lightning and severe NWS alerts sent `critical`-urgency notifications,
+  which mako/swaync keep pinned regardless of `alertNotifyTimeout`. All alerts
+  now send `normal` urgency so auto-dismiss always works.
+- README gains a "What it runs and connects to" section — every host contacted
+  (`swd.weatherflow.com`, `api.weather.gov`, `radar.weather.gov`), every
+  process spawned, and every file touched.
+
 ## 0.4.2
 
 - Omarchy 4.0.3 compatibility: the popup would not dismiss. 4.0.3 made
