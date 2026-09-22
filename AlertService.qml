@@ -165,9 +165,12 @@ Item {
     pointsProc.running = true
   }
 
+  // No secret here (coords only), so this runs curl directly -- no bash/-K
+  // wrapper needed. --max-filesize (4 MiB, generous for this small JSON
+  // response) still applies: `api.weather.gov` is allowed, not unbounded.
   Process {
     id: pointsProc
-    command: ["curl", "-fsSL", "--max-redirs", "3", "--max-time", "15",
+    command: ["curl", "-fsSL", "--max-redirs", "3", "--max-time", "15", "--max-filesize", "4194304",
       "-H", "User-Agent: tempest-weather Omarchy plugin (github.com/dreed47/tempest-weather)",
       "-H", "Accept: application/geo+json",
       "https://api.weather.gov/points/" + root.coord4]
@@ -232,11 +235,19 @@ Item {
   // blocks forever: `--max-time` bounds the transfer, not this pre-transfer
   // config read). Neither the URL nor the token ever appears in any
   // process's own argv.
+  //
+  // `--max-filesize` caps the response curl will accept (2 MiB -- this
+  // endpoint normally returns a few KB): `swd.weatherflow.com` is on the
+  // allowed-hosts list, but that doesn't mean its response is bounded, and
+  // this is a long-lived shell process, not a one-shot script -- an
+  // unbounded body would buffer entirely in StdioCollector before QML ever
+  // sees it. curl enforces this by streamed byte count, not Content-Length,
+  // so it still holds even if the response never declares its length.
   Process {
     id: stationsProc
     stdinEnabled: true
     command: ["bash", "-c",
-      'read -r URL && printf "url = %s\\n" "$URL" | curl -fsS --max-time 10 -K -']
+      'read -r URL && printf "url = %s\\n" "$URL" | curl -fsS --max-time 10 --max-filesize 2097152 -K -']
     onStarted: write(("https://swd.weatherflow.com/swd/rest/stations?token="
       + encodeURIComponent(root.token)).replace(/[\r\n]/g, "") + "\n")
     stdout: StdioCollector {
@@ -254,11 +265,12 @@ Item {
 
   // ---- Poll + evaluate ------------------------------------------------
 
+  // Same stdin-token / --max-filesize reasoning as stationsProc above.
   Process {
     id: pollProc
     stdinEnabled: true
     command: ["bash", "-c",
-      'read -r URL && printf "url = %s\\n" "$URL" | curl -fsS --max-time 10 -K -']
+      'read -r URL && printf "url = %s\\n" "$URL" | curl -fsS --max-time 10 --max-filesize 2097152 -K -']
     onStarted: write(root.requestUrl.replace(/[\r\n]/g, "") + "\n")
     stdout: StdioCollector {
       waitForEnd: true
@@ -320,9 +332,11 @@ Item {
 
   // ---- NWS area alerts ----------------------------------------------------
 
+  // No secret in this URL either; --max-filesize is 4 MiB to leave headroom
+  // for a busy multi-alert day (each alert carries a full text body).
   Process {
     id: nwsProc
-    command: ["curl", "-fsS", "--max-time", "15",
+    command: ["curl", "-fsS", "--max-time", "15", "--max-filesize", "4194304",
       "-H", "User-Agent: tempest-weather Omarchy plugin (github.com/dreed47/tempest-weather)",
       "-H", "Accept: application/geo+json",
       root.nwsUrl]

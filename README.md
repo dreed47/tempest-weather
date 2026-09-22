@@ -255,7 +255,10 @@ token is sent only to `swd.weatherflow.com` (in the query string, as that API
 requires); it is never logged or sent anywhere else. The token also never
 appears in any process's own command line — `ps`/`/proc/<pid>/cmdline` show
 every local user's argv, so the two fetches that carry it hand curl the URL
-over stdin (`curl -K -`) instead of as an argument.
+over stdin (`curl -K -`) instead of as an argument. Every fetch also caps the
+response size curl will accept (`--max-filesize`, 2 MiB for WeatherFlow,
+4 MiB for NWS) before it reaches this shell's memory, in case an otherwise-
+trusted host ever misbehaves or is compromised.
 
 **Processes it spawns:**
 

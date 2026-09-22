@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.2
+
+- Security: every `curl` fetch now caps the response size it will accept
+  (`--max-filesize` — 2 MiB for the WeatherFlow endpoints, 4 MiB for NWS)
+  before the body reaches this shell's memory. Flagged in marketplace review
+  #4532: the previous timeouts (`--max-time`) bound how *long* a fetch can
+  run, not how *much* data an otherwise-trusted host could send — an
+  unbounded response would have buffered entirely in `StdioCollector` before
+  QML ever saw it, in a process that stays running indefinitely. Verified
+  curl enforces this by streamed byte count (aborts exactly at the cap) even
+  when the response never declares a `Content-Length`.
+
 ## 0.5.1
 
 - Security: the Tempest API token no longer appears in any process's command

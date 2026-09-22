@@ -107,6 +107,13 @@ refetch kicks off. The ALERTS section rows write `alertLightning`,
   into a `radar.weather.gov` URL and an `AnimatedImage` source, so an
   unvalidated value there (a bad API response, a mistyped override) would
   otherwise reach a network/image-loader path unchecked.
+- Every `curl` call (all six: the two token fetches above, `pointsProc`,
+  `nwsProc`, and Panel.qml's mirrors of the first two) carries
+  `--max-filesize` (2 MiB WeatherFlow, 4 MiB NWS). `--max-time` only bounds
+  how long a fetch runs, not how much an allowed-but-possibly-compromised
+  host could send into `StdioCollector`'s buffer in a long-lived shell
+  process. Verified live: curl enforces this by streamed byte count, aborting
+  exactly at the cap even against a response with no `Content-Length`.
 - `BarWidget.qml` still resolves `bar.shell.serviceFor(id)` read-only, just to
   show a bolt (`0xf0e7`) on the pill while `alertService.lightningActive`.
 - Poll → `Model.detectLightning` / `Model.detectPrecipStart` (pure, in
