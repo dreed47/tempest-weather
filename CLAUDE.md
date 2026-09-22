@@ -75,11 +75,38 @@ refetch kicks off. The ALERTS section rows write `alertLightning`,
   any *enabled* plugin that declares kind `service`; the widget being placed on
   the bar is what "enables" it, so there is no separate enable step.
 - The service instance is injected `shell` / `manifest` (not `settings`). It
-  reads config from `shell.shellConfig` — it scans the bar layout / `plugins[]`
-  for its own `id` and pulls `token` / `stationId` / `units` + the `alert*`
-  keys. **Do not also push config in from `BarWidget.qml`** — an earlier
-  version did and the two sources raced, making `canPoll` flicker and the poll
-  timer thrash between 60 s and the 90 s default.
+  reads config from `shell.shellConfig.bar.layout` (older shells) falling back
+  to `shell.barConfig.layout` (Omarchy 4.0.3+, which dropped `shellConfig`
+  from the scoped plugin shell) — it scans for its own `id` and pulls `token`
+  / `stationId` / `units` + the `alert*` keys. **Do not also push config in
+  from `BarWidget.qml`** — an earlier version did and the two sources raced,
+  making `canPoll` flicker and the poll timer thrash between 60 s and the
+  90 s default.
+- **The Tempest token never touches any process's own argv.** `ps` and
+  `/proc/<pid>/cmdline` show every local user's command line, so the two
+  fetches that carry the token (`better_forecast`, `stations` — in both
+  `AlertService.qml` and `Panel.qml`) run as
+  `["bash", "-c", 'read -r URL && printf "url = %s\n" "$URL" | curl … -K -']`
+  with the URL delivered via `Process.write()` in `onStarted`, not as a
+  command-line argument. `read -r` takes exactly one line — no EOF needed, so
+  this works with Quickshell's write-only `Process.write()` — and the inner
+  `printf | curl -K -` pipe is bash's own, closed automatically once `printf`
+  finishes, which is what gives curl's `-K -` config reader the EOF it needs.
+  **`curl -K -` fed directly off `Process.write()` (no bash wrapper) hangs
+  forever** — Quickshell exposes no API to close/EOF a process's stdin, and
+  `--max-time` only bounds the transfer, not curl's pre-transfer config read.
+  A `bash -c 'read URL && exec curl … "$URL"'` wrapper (no inner pipe) does
+  **not** fix the leak either — `exec` still hands curl the expanded URL as
+  its own argv. Both were tried and disproven live (`ps` during the poll)
+  before landing on the `read` + inner `printf | curl -K -` pipe. The NWS/
+  radar fetches (`pointsProc`, `nwsProc`) carry no secret, so they still run
+  `curl` directly with the URL in argv — fine, nothing sensitive in it.
+- `radarStation` (both the `alertRadarSite` override and the value parsed out
+  of the `api.weather.gov/points` response) is whitelisted with
+  `Model.isValidRadarStation` (`^[A-Z0-9]{3,5}$`) before use — it gets spliced
+  into a `radar.weather.gov` URL and an `AnimatedImage` source, so an
+  unvalidated value there (a bad API response, a mistyped override) would
+  otherwise reach a network/image-loader path unchecked.
 - `BarWidget.qml` still resolves `bar.shell.serviceFor(id)` read-only, just to
   show a bolt (`0xf0e7`) on the pill while `alertService.lightningActive`.
 - Poll → `Model.detectLightning` / `Model.detectPrecipStart` (pure, in

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.1
+
+- Security: the Tempest API token no longer appears in any process's command
+  line. `ps`/`/proc/<pid>/cmdline` are readable by every local user, and the
+  token was previously embedded in the URL passed to `curl` as a plain
+  argument on every poll. The two fetches that carry it now hand curl the URL
+  over stdin (`curl -K -`) instead. See the README's "What it runs and
+  connects to" section for the exact mechanism.
+- Hardening: the NWS radar site code (from `api.weather.gov` or the
+  `alertRadarSite` override) is now whitelisted to `^[A-Z0-9]{3,5}$` before
+  it's spliced into a `radar.weather.gov` URL or the popup's radar image
+  source.
+
 ## 0.5.0
 
 - The alert service (below) and its `service` manifest kind are now part of

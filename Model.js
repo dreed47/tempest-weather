@@ -282,6 +282,16 @@ function nwsEventLabel(props) {
   return props && props.event ? String(props.event) : "Weather alert"
 }
 
+// Whitelist for a WSR-88D radar site code (e.g. "KCLE"): 3-5 upper-case
+// letters/digits, nothing else. Applied both to the user's own
+// `alertRadarSite` override and to `radarStation` as parsed out of the
+// api.weather.gov /points response, before either is spliced into a
+// radar.weather.gov URL -- an unvalidated value there could send the popup's
+// image loader and "open in browser" link to an unexpected path.
+function isValidRadarStation(s) {
+  return /^[A-Z0-9]{3,5}$/.test(String(s || ""))
+}
+
 // Numeric severity for sorting a list of alerts (higher = worse).
 function nwsSeverityRank(props) {
   var s = props ? String(props.severity || "").toLowerCase() : ""
@@ -351,6 +361,7 @@ if (typeof module !== "undefined") {
     nwsTier: nwsTier,
     nwsQualifies: nwsQualifies,
     nwsEventLabel: nwsEventLabel,
+    isValidRadarStation: isValidRadarStation,
     nwsSeverityRank: nwsSeverityRank,
     nwsSummary: nwsSummary,
     summaryLines: summaryLines

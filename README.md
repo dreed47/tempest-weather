@@ -252,13 +252,16 @@ is configured/enabled:**
 
 No analytics, telemetry, update checks, or any other host. Your Tempest API
 token is sent only to `swd.weatherflow.com` (in the query string, as that API
-requires); it is never logged or sent anywhere else.
+requires); it is never logged or sent anywhere else. The token also never
+appears in any process's own command line — `ps`/`/proc/<pid>/cmdline` show
+every local user's argv, so the two fetches that carry it hand curl the URL
+over stdin (`curl -K -`) instead of as an argument.
 
 **Processes it spawns:**
 
 | Command | Purpose |
 |---------|---------|
-| `curl -fsS[L] …` | the API fetches above |
+| `curl -fsS[L] …` | the API fetches above. The two fetches carrying the Tempest token (`better_forecast`, `stations`) run as `bash -c 'read -r URL && printf … \| curl … -K -'` so the token reaches curl over stdin, never as a command-line argument; the NWS/radar fetches carry no secret and run curl directly |
 | `pw-play <file>` | play an alert sound (and the settings-form **test** buttons) |
 | `omarchy-notification-send …` | the desktop notification for an alert, and the right-click summary |
 | `omarchy-bar set <id> <key> <value>` | save one settings-form field to this widget's `shell.json` entry (only on **Save**) |

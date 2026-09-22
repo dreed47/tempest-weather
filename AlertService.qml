@@ -149,8 +149,11 @@ Item {
     ? ("https://api.weather.gov/alerts/active?point=" + coord4) : ""
 
   // NWS radar site (e.g. "KCLE") for the popup's in-window radar loop. From
-  // api.weather.gov/points, or the alertRadarSite override.
-  readonly property string configuredRadarSite: String(cval("alertRadarSite", "")).replace(/^\s+|\s+$/g, "").toUpperCase()
+  // api.weather.gov/points, or the alertRadarSite override. Both are
+  // whitelisted (Model.isValidRadarStation) before use -- this value gets
+  // spliced straight into a radar.weather.gov URL.
+  readonly property string configuredRadarSiteRaw: String(cval("alertRadarSite", "")).replace(/^\s+|\s+$/g, "").toUpperCase()
+  readonly property string configuredRadarSite: Model.isValidRadarStation(configuredRadarSiteRaw) ? configuredRadarSiteRaw : ""
   property string resolvedRadarStation: ""
   readonly property string radarStation: configuredRadarSite !== "" ? configuredRadarSite : resolvedRadarStation
 
@@ -173,8 +176,8 @@ Item {
       onStreamFinished: {
         try {
           var d = JSON.parse(String(text || "").replace(/^\s+|\s+$/g, ""))
-          var rs = d && d.properties ? d.properties.radarStation : null
-          if (rs) root.resolvedRadarStation = String(rs).toUpperCase()
+          var rs = d && d.properties ? String(d.properties.radarStation || "").toUpperCase() : ""
+          if (Model.isValidRadarStation(rs)) root.resolvedRadarStation = rs
         } catch (e) {}
       }
     }
@@ -218,10 +221,24 @@ Item {
   onTokenChanged: { discoveredStationId = ""; Qt.callLater(maybeDiscoverStation) }
   onAnyAlertEnabledChanged: Qt.callLater(maybeDiscoverStation)
 
+  // The token goes over stdin, never argv: `ps`/`/proc/<pid>/cmdline` show
+  // every local user's process command line, so a URL-embedded token would
+  // leak on every poll. `read -r URL` takes one line (no EOF needed, so this
+  // works with Quickshell's write-only Process.write()); the inner
+  // `printf | curl -K -` pipe is bash's own, and bash closes it as soon as
+  // printf finishes, giving curl the EOF its `-K -` config reader needs --
+  // Quickshell's Process exposes no API to close/EOF a process's stdin
+  // directly, so curl can't read `-K -` straight off Process.write() (it
+  // blocks forever: `--max-time` bounds the transfer, not this pre-transfer
+  // config read). Neither the URL nor the token ever appears in any
+  // process's own argv.
   Process {
     id: stationsProc
-    command: ["curl", "-fsS", "--max-time", "10",
-      "https://swd.weatherflow.com/swd/rest/stations?token=" + encodeURIComponent(root.token)]
+    stdinEnabled: true
+    command: ["bash", "-c",
+      'read -r URL && printf "url = %s\\n" "$URL" | curl -fsS --max-time 10 -K -']
+    onStarted: write(("https://swd.weatherflow.com/swd/rest/stations?token="
+      + encodeURIComponent(root.token)).replace(/[\r\n]/g, "") + "\n")
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -239,7 +256,10 @@ Item {
 
   Process {
     id: pollProc
-    command: ["curl", "-fsS", "--max-time", "10", root.requestUrl]
+    stdinEnabled: true
+    command: ["bash", "-c",
+      'read -r URL && printf "url = %s\\n" "$URL" | curl -fsS --max-time 10 -K -']
+    onStarted: write(root.requestUrl.replace(/[\r\n]/g, "") + "\n")
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
