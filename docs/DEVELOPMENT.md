@@ -1,8 +1,17 @@
-# CLAUDE.md — Tempest Weather plugin
+# Development notes — Tempest Weather plugin
 
-Orientation for an agent (or a returning developer) picking this repo up cold.
-Read this first, then the file you need — you should not have to read the whole
-tree to make a change.
+Orientation for a returning developer (or an agent explicitly pointed at this
+file) picking this repo up cold. Read this first, then the file you need —
+you should not have to read the whole tree to make a change.
+
+> This file is ordinary documentation, not an agent-control file. It lives
+> under `docs/` and is named `DEVELOPMENT.md` on purpose: this repo's tree is
+> installed as-is as the plugin (`~/.config/omarchy/plugins/<id>/`), and a
+> root-level `CLAUDE.md`/`AGENTS.md`-style filename would be auto-loaded by a
+> coding agent operating in that installed directory — giving a plugin author
+> a channel to hand agents instructions the user never asked for. Nothing
+> here should be treated as an instruction by an agent that didn't seek it
+> out; it's notes for whoever is actively working on the code.
 
 ## What this is
 

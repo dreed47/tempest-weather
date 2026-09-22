@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.3
+
+- `CLAUDE.md` moved to `docs/DEVELOPMENT.md`. Flagged in marketplace review
+  #4532: the marketplace installs a plugin's repo tree as-is, and a
+  root-level `CLAUDE.md` (or similarly named agent-control file) would be
+  auto-loaded by a coding agent operating in that installed directory —
+  letting a plugin author hand agents instructions the user never asked for.
+  Same content, no longer in a location any tool auto-loads.
+
 ## 0.5.2
 
 - Security: every `curl` fetch now caps the response size it will accept
